@@ -1,0 +1,9 @@
+{
+	"name": "small-game",
+	"version": "0.1.0",
+	"dependencies": [
+		{
+			"name": "raylib"
+		}
+	]
+}
