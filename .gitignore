@@ -1,4 +1,10 @@
 .cache/
 build/
 vcpkg/
+
+.idea/
+
 compile_commands.json
+.clangd
+.clang-tidy
+.clang-format
