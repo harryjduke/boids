@@ -6,9 +6,8 @@
 
 void spawnBoids(Vector2 *boidsArray, int numberOfBoids, Rectangle spawnBounds) {
     for (int i = 0; i < numberOfBoids; i++) {
-        boidsArray[i] = (Vector2){GetRandomValue(spawnBounds.x, spawnBounds.width),
-                                  GetRandomValue(spawnBounds.y, spawnBounds.height)};
-        return;
+        boidsArray[i] = (Vector2){(float)GetRandomValue((int)spawnBounds.x, (int)spawnBounds.width),
+                                  (float)GetRandomValue((int)spawnBounds.y, (int)spawnBounds.height)};
     }
 }
 
@@ -19,7 +18,7 @@ int main(int argc, char *argv[]) {
     const int numberOfBoids = 10;
 
     Vector2 boids[numberOfBoids];
-    spawnBoids(boids, numberOfBoids, (Rectangle){0.f, 0.f, screenWidth, screenHeight});
+    spawnBoids(boids, numberOfBoids, (Rectangle){0.f, 0.f, (float)screenWidth, (float)screenHeight});
 
     InitWindow(screenWidth, screenHeight, "Boids");
     SetTargetFPS(60);
@@ -32,7 +31,7 @@ int main(int argc, char *argv[]) {
         ClearBackground(RAYWHITE);
 
         for (int i = 0; i < numberOfBoids; i++) {
-            DrawCircle(boids[i].x, boids[i].y, 5.f, MAROON);
+            DrawCircle((int)boids[i].x, (int)boids[i].y, 5.f, MAROON);
         }
 
         DrawText("Boids", 10, 10, 20, DARKGRAY);
