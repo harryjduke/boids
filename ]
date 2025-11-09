@@ -10,19 +10,22 @@ typedef struct {
 } Boid;
 
 #define BOID_LENGTH 10.f
-#define BOID_WIDTH 7.5f
+#define BOID_WIDTH 5.f
 
-void drawBoid(const Boid boid) {
-    const Vector2 forwardVector = Vector2Normalize(boid.velocity);
+void drawBoid(Boid boid) {
+    Vector2 forwardVector = Vector2Normalize(boid.velocity);
     Vector2 vertex1 = Vector2Scale(forwardVector, BOID_LENGTH/2.f);
-    Vector2 vertex2 = Vector2Add(Vector2Negate(vertex1), Vector2Scale((Vector2){forwardVector.y, -forwardVector.x}, BOID_WIDTH/2.f));
-    Vector2 vertex3 = Vector2Add(Vector2Negate(vertex1), Vector2Scale((Vector2){-forwardVector.y, forwardVector.x}, BOID_WIDTH/2.f));
+    Vector2 vertex2 = Vector2Add(Vector2Invert(vertex1), (Vector2){-forwardVector.y, forwardVector.x});
+    Vector2 vertex3 = Vector2Invert(vertex2);
 
     // Transform vertices from local space to world space
     vertex1 = Vector2Add(vertex1, boid.position);
     vertex2 = Vector2Add(vertex2, boid.position);
     vertex3 = Vector2Add(vertex3, boid.position);
 
+    DrawLineV(vertex1, vertex2, MAROON);
+    DrawLineV(vertex2, vertex3, MAROON);
+    DrawLineV(vertex3, vertex1, MAROON);
     DrawTriangle(vertex1, vertex2, vertex3, MAROON);
 }
 
@@ -72,6 +75,7 @@ int main(int argc, char *argv[]) {
         ClearBackground(RAYWHITE);
 
         for (int i = 0; i < numberOfBoids; i++) {
+            // DrawCircleV(boids[i].position, 5.f, MAROON);
             drawBoid(boids[i]);
         }
 

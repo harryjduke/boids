@@ -1,6 +1,8 @@
 .cache/
-build/
 vcpkg/
+
+build*/
+cmake-build-*/
 
 .idea/
 
