@@ -1,5 +1,6 @@
 #include "boid.h"
 
+#include <raylib.h>
 #include <raymath.h>
 
 void DrawBoid(const Boid boid) {
@@ -15,7 +16,7 @@ void DrawBoid(const Boid boid) {
     vertex2 = Vector2Add(vertex2, boid.position);
     vertex3 = Vector2Add(vertex3, boid.position);
 
-    DrawTriangle(vertex1, vertex2, vertex3, MAROON);
+    DrawTriangle(vertex1, vertex2, vertex3, BLUE);
 }
 
 void SpawnBoids(Boid *boidsArray, const int numberOfBoids, const Rectangle spawnBounds) {
@@ -23,6 +24,8 @@ void SpawnBoids(Boid *boidsArray, const int numberOfBoids, const Rectangle spawn
         boidsArray[i] = (Boid) {
                 (Vector2) {(float) GetRandomValue((int) spawnBounds.x, (int) (spawnBounds.x + spawnBounds.width)),
                            (float) GetRandomValue((int) spawnBounds.y, (int) (spawnBounds.y + spawnBounds.height))},
-                (Vector2) {10.f, 5.f}};
+                Vector2Scale(
+                        Vector2Normalize((Vector2) {(float) GetRandomValue(0, 100), (float) GetRandomValue(0, 100)}),
+                        (BOID_MIN_SPEED + BOID_MAX_SPEED) / 2.f)};
     }
 }
