@@ -33,6 +33,8 @@ find_path(RAYGUI_INCLUDE_DIRS "raygui.h")
 add_executable(game
     src/main.c
     src/boid.c
+    src/flock.c
+    src/gui.c
 )
 
 target_include_directories(game PRIVATE ${RAYGUI_INCLUDE_DIRS})

@@ -13,6 +13,6 @@ typedef struct {
 
 void DrawBoid(Boid boid);
 
-Boid* SpawnBoids(int numberOfBoids, Rectangle spawnBounds, float startSpeed);
+Boid *SpawnBoids(int numberOfBoids, Rectangle spawnBounds, float startSpeed);
 
 #endif // !BOID_H
