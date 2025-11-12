@@ -2,6 +2,7 @@
 
 #include <raylib.h>
 #include <raymath.h>
+#include <stdlib.h>
 
 void DrawBoid(const Boid boid) {
     const Vector2 forwardVector = Vector2Normalize(boid.velocity);
@@ -19,13 +20,15 @@ void DrawBoid(const Boid boid) {
     DrawTriangle(vertex1, vertex2, vertex3, BLUE);
 }
 
-void SpawnBoids(Boid *boidsArray, const int numberOfBoids, const Rectangle spawnBounds) {
+Boid *SpawnBoids(const int numberOfBoids, const Rectangle spawnBounds, const float startSpeed) {
+    Boid *boidsArray = malloc(sizeof(Boid) * numberOfBoids);
     for (int i = 0; i < numberOfBoids; i++) {
         boidsArray[i] = (Boid) {
                 (Vector2) {(float) GetRandomValue((int) spawnBounds.x, (int) (spawnBounds.x + spawnBounds.width)),
                            (float) GetRandomValue((int) spawnBounds.y, (int) (spawnBounds.y + spawnBounds.height))},
-                Vector2Scale(
-                        Vector2Normalize((Vector2) {(float) GetRandomValue(0, 100), (float) GetRandomValue(0, 100)}),
-                        (BOID_MIN_SPEED + BOID_MAX_SPEED) / 2.f)};
+                Vector2Scale(Vector2Normalize(
+                                     (Vector2) {(float) GetRandomValue(-100, 100), (float) GetRandomValue(-100, 100)}),
+                             startSpeed)};
     }
+    return boidsArray;
 }

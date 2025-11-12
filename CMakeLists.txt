@@ -26,12 +26,16 @@ if (EXISTS "${CMAKE_SOURCE_DIR}/lib")
 endif ()
 
 find_package(raylib REQUIRED)
+find_path(RAYGUI_INCLUDE_DIRS "raygui.h")
 
 # --- BUILD PROJECT ---
 
 add_executable(game
     src/main.c
+    src/boid.c
 )
+
+target_include_directories(game PRIVATE ${RAYGUI_INCLUDE_DIRS})
 target_include_directories(game PRIVATE include)
 target_link_libraries(game PRIVATE raylib)
 
