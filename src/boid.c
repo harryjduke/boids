@@ -22,17 +22,18 @@ void DrawBoid(const Boid boid) {
 }
 
 Boid *SpawnBoids(const int numberOfBoids, const Rectangle spawnBounds, const float startSpeed) {
-    Boid *boidsArray = malloc(sizeof(Boid) * numberOfBoids);
-    if (!boidsArray) {
-        printf("Memory Allocation Failed\n");
+    Boid *boids = malloc(sizeof(Boid) * numberOfBoids);
+    if (boids == NULL) {
+        TraceLog(LOG_ERROR, "SpawnBoids: Failed to allocate memory for %d boids.", numberOfBoids);
+        return NULL;
     }
     for (int i = 0; i < numberOfBoids; i++) {
-        boidsArray[i] = (Boid) {
+        boids[i] = (Boid) {
                 (Vector2) {(float) GetRandomValue((int) spawnBounds.x, (int) (spawnBounds.x + spawnBounds.width)),
                            (float) GetRandomValue((int) spawnBounds.y, (int) (spawnBounds.y + spawnBounds.height))},
                 Vector2Scale(Vector2Normalize(
                                      (Vector2) {(float) GetRandomValue(-100, 100), (float) GetRandomValue(-100, 100)}),
                              startSpeed)};
     }
-    return boidsArray;
+    return boids;
 }

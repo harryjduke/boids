@@ -33,6 +33,7 @@ struct FlockConfig {
 // State of boids flock
 struct FlockState {
     Boid *boids;
+    int count;
 
     // Debug values
     float collisionRate;
@@ -41,8 +42,10 @@ struct FlockState {
 
 struct FlockConfig CreateDefaultFlockConfig(Rectangle flockBounds);
 
-struct FlockState InitializeFlock(struct FlockConfig config);
+bool InitializeFlock(struct FlockState *flockState, const struct FlockConfig *flockConfig);
 
 void UpdateFlock(struct FlockState *flockState, const struct FlockConfig *flockConfig);
+
+void DestroyFlock(struct FlockState *flockState);
 
 #endif // !BOID_FLOCK_H

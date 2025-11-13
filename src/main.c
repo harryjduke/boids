@@ -10,7 +10,12 @@ int main(int argc, char *argv[]) {
 
     struct FlockConfig flockConfig =
             CreateDefaultFlockConfig((Rectangle) {0.f, 0.f, (float) screenWidth, (float) screenHeight});
-    struct FlockState flockState = InitializeFlock(flockConfig);
+    struct FlockState flockState;
+    if (!InitializeFlock(&flockState, &flockConfig)) {
+        TraceLog(LOG_FATAL, "Could not initialise flock. Exiting.");
+        CloseWindow();
+        return EXIT_FAILURE;
+    }
 
     struct GuiConfig guiConfig = CreateDefaultGuiConfig((float) screenHeight);
 
@@ -35,7 +40,8 @@ int main(int argc, char *argv[]) {
         }
 
         // Draw GUI
-        const struct ParametersPanelResult parametersPanelResult = DrawParametersPanel(&guiConfig, &flockState, &flockConfig);
+        const struct ParametersPanelResult parametersPanelResult =
+                DrawParametersPanel(&guiConfig, &flockState, &flockConfig);
         flockConfig = parametersPanelResult.newFlockConfig;
         if (parametersPanelResult.resetBoids) {
             free(flockState.boids);
@@ -48,7 +54,7 @@ int main(int argc, char *argv[]) {
         EndDrawing();
     }
 
-    free(flockState.boids);
+    DestroyFlock(&flockState);
     CloseWindow();
     return EXIT_SUCCESS;
 }

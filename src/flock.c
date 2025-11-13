@@ -1,6 +1,7 @@
 #include "flock.h"
 
 #include <raymath.h>
+#include <stdlib.h>
 
 struct FlockConfig CreateDefaultFlockConfig(const Rectangle flockBounds) {
     return (struct FlockConfig) {.flockBounds = flockBounds,
@@ -19,11 +20,19 @@ struct FlockConfig CreateDefaultFlockConfig(const Rectangle flockBounds) {
                                  .maximumSpeed = 100.f};
 }
 
-struct FlockState InitializeFlock(const struct FlockConfig config) {
-    return (struct FlockState) {.boids = SpawnBoids(config.numberOfBoids, config.flockBounds,
-                                                    (config.minimumSpeed + config.maximumSpeed) / 2.f),
-                                .collisionRate = 0.f,
-                                .collisionRateMeasurementStart = 0.f};
+bool InitializeFlock(struct FlockState *flockState, const struct FlockConfig *flockConfig) {
+    *flockState = (struct FlockState) {.boids = SpawnBoids(flockConfig->numberOfBoids, flockConfig->flockBounds,
+                                                           (flockConfig->minimumSpeed + flockConfig->maximumSpeed) / 2.f),
+                                       .count = flockConfig->numberOfBoids,
+                                       .collisionRate = 0.f,
+                                       .collisionRateMeasurementStart = 0.f};
+
+    if (flockState->boids == NULL) {
+        flockState->count = 0;
+        return false;
+    }
+
+    return true;
 }
 
 void UpdateFlock(struct FlockState *flockState, const struct FlockConfig *flockConfig) {
@@ -119,4 +128,12 @@ void UpdateFlock(struct FlockState *flockState, const struct FlockConfig *flockC
         if (flockState->boids[i].position.y > flockConfig->flockBounds.height)
             flockState->boids[i].position.y = flockConfig->flockBounds.y;
     }
+}
+
+void DestroyFlock(struct FlockState *flockState) {
+    if (flockState->boids != NULL) {
+        free(flockState->boids);
+        flockState->boids = NULL;
+    }
+    flockState->count = 0;
 }
