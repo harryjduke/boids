@@ -2,6 +2,7 @@
 
 #include <raylib.h>
 #include <raymath.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 void DrawBoid(const Boid boid) {
@@ -22,6 +23,9 @@ void DrawBoid(const Boid boid) {
 
 Boid *SpawnBoids(const int numberOfBoids, const Rectangle spawnBounds, const float startSpeed) {
     Boid *boidsArray = malloc(sizeof(Boid) * numberOfBoids);
+    if (!boidsArray) {
+        printf("Memory Allocation Failed\n");
+    }
     for (int i = 0; i < numberOfBoids; i++) {
         boidsArray[i] = (Boid) {
                 (Vector2) {(float) GetRandomValue((int) spawnBounds.x, (int) (spawnBounds.x + spawnBounds.width)),

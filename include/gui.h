@@ -22,10 +22,11 @@ struct GuiConfig CreateDefaultGuiConfig(float screenHeight);
 
 struct ParametersPanelResult {
     bool resetBoids;
+    struct FlockConfig newFlockConfig;
 };
 
-struct ParametersPanelResult DrawParametersPanel(const struct GuiConfig *guiConfig, struct FlockConfig *flockConfig,
-                                                 const struct FlockState *flockState);
+struct ParametersPanelResult DrawParametersPanel(const struct GuiConfig *guiConfig,
+                                                 const struct FlockState *flockState, const struct FlockConfig *flockConfig);
 
 void DrawBoidRanges(const struct GuiConfig *guiConfig, const struct FlockConfig *flockConfig, const Boid *boid);
 

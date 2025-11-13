@@ -35,8 +35,8 @@ int main(int argc, char *argv[]) {
         }
 
         // Draw GUI
-        const struct ParametersPanelResult parametersPanelResult =
-                DrawParametersPanel(&guiConfig, &flockConfig, &flockState);
+        const struct ParametersPanelResult parametersPanelResult = DrawParametersPanel(&guiConfig, &flockState, &flockConfig);
+        flockConfig = parametersPanelResult.newFlockConfig;
         if (parametersPanelResult.resetBoids) {
             free(flockState.boids);
             flockState.boids = SpawnBoids(flockConfig.numberOfBoids, flockConfig.flockBounds,

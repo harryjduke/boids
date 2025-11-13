@@ -1,4 +1,6 @@
 #include "gui.h"
+#include <stdbool.h>
+#include "flock.h"
 
 #define RAYGUI_IMPLEMENTATION
 #include <raygui.h>
@@ -35,17 +37,17 @@ struct GuiConfig CreateDefaultGuiConfig(float screenHeight) {
                                .buttonHeight = 20.f};
 }
 
-void DrawBoidRanges(const struct GuiConfig *guiConfig, const struct FlockConfig *flockConfig,
-                    const Boid *boid) {
-    if (!state.showRanges) return;
+void DrawBoidRanges(const struct GuiConfig *guiConfig, const struct FlockConfig *flockConfig, const Boid *boid) {
+    if (!state.showRanges)
+        return;
     DrawCircleV(boid->position, flockConfig->separationRange, Fade(GRAY, 0.5f));
     DrawCircleV(boid->position, flockConfig->alignmentRange, Fade(GRAY, 0.5f));
     DrawCircleV(boid->position, flockConfig->cohesionRange, Fade(GRAY, 0.5f));
 }
 
-struct ParametersPanelResult DrawParametersPanel(const struct GuiConfig *guiConfig, struct FlockConfig *flockConfig,
-                                                 const struct FlockState *flockState) {
-    struct ParametersPanelResult result = {0};
+struct ParametersPanelResult DrawParametersPanel(const struct GuiConfig *guiConfig, const struct FlockState *flockState,
+                                                 const struct FlockConfig *flockConfig) {
+    struct ParametersPanelResult result = {.resetBoids = false, .newFlockConfig = *flockConfig};
     GuiSetStyle(SPINNER, TEXT_ALIGNMENT, TEXT_ALIGN_RIGHT);
     GuiSetStyle(SPINNER, TEXT_PADDING, (int) guiConfig->padding);
 
@@ -58,25 +60,25 @@ struct ParametersPanelResult DrawParametersPanel(const struct GuiConfig *guiConf
                 TEXT_ALIGN_LEFT, DARKGRAY);
     heightOffset += guiConfig->headingHeight + guiConfig->padding;
 
-    int separationFactorValue = (int) (flockConfig->separationFactor * 100.f);
+    int separationFactorValue = (int) (result.newFlockConfig.separationFactor * 100.f);
     if (GuiSpinner((Rectangle) {guiConfig->padding, heightOffset, guiConfig->spinnerWidth, guiConfig->spinnerHeight},
                    "Separation", &separationFactorValue, 0, 10000, state.separationFactorSpinnerEditMode))
         state.separationFactorSpinnerEditMode = !state.separationFactorSpinnerEditMode;
-    flockConfig->separationFactor = (float) separationFactorValue / 100.f;
+    result.newFlockConfig.separationFactor = (float) separationFactorValue / 100.f;
     heightOffset += guiConfig->spinnerHeight + guiConfig->padding;
 
-    int alignmentFactorValue = (int) (flockConfig->alignmentFactor * 10000.f);
+    int alignmentFactorValue = (int) (result.newFlockConfig.alignmentFactor * 10000.f);
     if (GuiSpinner((Rectangle) {guiConfig->padding, heightOffset, guiConfig->spinnerWidth, guiConfig->spinnerHeight},
                    "Alignment", &alignmentFactorValue, 0, 10000, state.alignmentFactorSpinnerEditMode))
         state.alignmentFactorSpinnerEditMode = !state.alignmentFactorSpinnerEditMode;
-    flockConfig->alignmentFactor = (float) alignmentFactorValue / 10000.f;
+    result.newFlockConfig.alignmentFactor = (float) alignmentFactorValue / 10000.f;
     heightOffset += guiConfig->spinnerHeight + guiConfig->padding;
 
-    int cohesionFactorValue = (int) (flockConfig->cohesionFactor * 10000.f);
+    int cohesionFactorValue = (int) (result.newFlockConfig.cohesionFactor * 10000.f);
     if (GuiSpinner((Rectangle) {guiConfig->padding, heightOffset, guiConfig->spinnerWidth, guiConfig->spinnerHeight},
                    "Cohesion", &cohesionFactorValue, 0, 10000, state.cohesionFactorSpinnerEditMode))
         state.cohesionFactorSpinnerEditMode = !state.cohesionFactorSpinnerEditMode;
-    flockConfig->cohesionFactor = (float) cohesionFactorValue / 10000.f;
+    result.newFlockConfig.cohesionFactor = (float) cohesionFactorValue / 10000.f;
     heightOffset += guiConfig->spinnerHeight + guiConfig->padding;
 
     GuiDrawText("Force Ranges",
@@ -85,25 +87,25 @@ struct ParametersPanelResult DrawParametersPanel(const struct GuiConfig *guiConf
                 TEXT_ALIGN_LEFT, DARKGRAY);
     heightOffset += guiConfig->headingHeight + guiConfig->padding;
 
-    int separationRangeValue = (int) flockConfig->separationRange;
+    int separationRangeValue = (int) result.newFlockConfig.separationRange;
     if (GuiSpinner((Rectangle) {guiConfig->padding, heightOffset, guiConfig->spinnerWidth, guiConfig->spinnerHeight},
                    "Separation", &separationRangeValue, 0, 1000, state.separationRangeSpinnerEditMode))
         state.separationRangeSpinnerEditMode = !state.separationRangeSpinnerEditMode;
-    flockConfig->separationRange = (float) separationRangeValue;
+    result.newFlockConfig.separationRange = (float) separationRangeValue;
     heightOffset += guiConfig->spinnerHeight + guiConfig->padding;
 
-    int alignmentRangeValue = (int) flockConfig->alignmentRange;
+    int alignmentRangeValue = (int) result.newFlockConfig.alignmentRange;
     if (GuiSpinner((Rectangle) {guiConfig->padding, heightOffset, guiConfig->spinnerWidth, guiConfig->spinnerHeight},
                    "Alignment", &alignmentRangeValue, 0, 1000, state.alignmentRangeSpinnerEditMode))
         state.alignmentRangeSpinnerEditMode = !state.alignmentRangeSpinnerEditMode;
-    flockConfig->alignmentRange = (float) alignmentRangeValue;
+    result.newFlockConfig.alignmentRange = (float) alignmentRangeValue;
     heightOffset += guiConfig->spinnerHeight + guiConfig->padding;
 
-    int cohesionRangeValue = (int) flockConfig->cohesionRange;
+    int cohesionRangeValue = (int) result.newFlockConfig.cohesionRange;
     if (GuiSpinner((Rectangle) {guiConfig->padding, heightOffset, guiConfig->spinnerWidth, guiConfig->spinnerHeight},
                    "Cohesion", &cohesionRangeValue, 0, 1000, state.cohesionRangeSpinnerEditMode))
         state.cohesionRangeSpinnerEditMode = !state.cohesionRangeSpinnerEditMode;
-    flockConfig->cohesionRange = (float) cohesionRangeValue;
+    result.newFlockConfig.cohesionRange = (float) cohesionRangeValue;
     heightOffset += guiConfig->spinnerHeight + guiConfig->padding;
 
     GuiCheckBox((Rectangle) {guiConfig->padding, heightOffset, guiConfig->checkboxHeight, guiConfig->checkboxHeight},
@@ -117,24 +119,24 @@ struct ParametersPanelResult DrawParametersPanel(const struct GuiConfig *guiConf
     heightOffset += guiConfig->headingHeight + guiConfig->padding;
 
     GuiCheckBox((Rectangle) {guiConfig->padding, heightOffset, guiConfig->checkboxHeight, guiConfig->checkboxHeight},
-                "Clamp Speed", &flockConfig->clampSpeed);
+                "Clamp Speed", &result.newFlockConfig.clampSpeed);
     heightOffset += guiConfig->checkboxHeight + guiConfig->padding;
 
-    if (!flockConfig->clampSpeed)
+    if (!result.newFlockConfig.clampSpeed)
         GuiDisable();
 
-    int minimumSpeedValue = (int) flockConfig->minimumSpeed;
+    int minimumSpeedValue = (int) result.newFlockConfig.minimumSpeed;
     if (GuiSpinner((Rectangle) {guiConfig->padding, heightOffset, guiConfig->spinnerWidth, guiConfig->spinnerHeight},
                    "Minimum Speed", &minimumSpeedValue, 0, 1000, state.minimumSpeedSpinnerEditMode))
         state.minimumSpeedSpinnerEditMode = !state.minimumSpeedSpinnerEditMode;
-    flockConfig->minimumSpeed = (float) minimumSpeedValue;
+    result.newFlockConfig.minimumSpeed = (float) minimumSpeedValue;
     heightOffset += guiConfig->spinnerHeight + guiConfig->padding;
 
-    int maximumSpeedValue = (int) flockConfig->maximumSpeed;
+    int maximumSpeedValue = (int) result.newFlockConfig.maximumSpeed;
     if (GuiSpinner((Rectangle) {guiConfig->padding, heightOffset, guiConfig->spinnerWidth, guiConfig->spinnerHeight},
                    "Maximum Speed", &maximumSpeedValue, 0, 1000, state.maximumSpeedSpinnerEditMode))
         state.maximumSpeedSpinnerEditMode = !state.maximumSpeedSpinnerEditMode;
-    flockConfig->maximumSpeed = (float) maximumSpeedValue;
+    result.newFlockConfig.maximumSpeed = (float) maximumSpeedValue;
     heightOffset += guiConfig->spinnerHeight + guiConfig->padding;
 
     GuiEnable();
@@ -145,11 +147,12 @@ struct ParametersPanelResult DrawParametersPanel(const struct GuiConfig *guiConf
                 TEXT_ALIGN_LEFT, DARKGRAY);
     heightOffset += guiConfig->headingHeight + guiConfig->padding;
 
-    int newNumberOfBoids = flockConfig->numberOfBoids;
     if (GuiSpinner((Rectangle) {guiConfig->padding, heightOffset, guiConfig->spinnerWidth, guiConfig->spinnerHeight},
-                   "Number of Boids", &newNumberOfBoids, 0, 10000, state.numberOfBoidsSpinnerEditMode))
+                   "Number of Boids", &result.newFlockConfig.numberOfBoids, 0, 10000, state.numberOfBoidsSpinnerEditMode))
         state.numberOfBoidsSpinnerEditMode = !state.numberOfBoidsSpinnerEditMode;
-    if (newNumberOfBoids != flockConfig->numberOfBoids) {
+    // Reset boids when the number is changed to prevent buffer overflow.
+    // TODO: Chang to dynamically resize the buffer.
+    if (flockConfig->numberOfBoids != result.newFlockConfig.numberOfBoids) {
         result.resetBoids = true;
     }
     heightOffset += guiConfig->spinnerHeight + guiConfig->padding;
