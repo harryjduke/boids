@@ -5,6 +5,17 @@
 #define RAYGUI_IMPLEMENTATION
 #include <raygui.h>
 
+struct GuiConfig CreateDefaultGuiConfig(float screenHeight) {
+    return (struct GuiConfig) {.padding = 5.f,
+                               .panelWidth = 200.f,
+                               .panelHeight = screenHeight,
+                               .headingHeight = 15.f,
+                               .spinnerHeight = 20.f,
+                               .spinnerWidth = 90.f,
+                               .checkboxHeight = 10.f,
+                               .buttonHeight = 20.f};
+}
+
 void InitializeParametersPanel(struct ParametersPanelState *parametersPanelState) {
     *parametersPanelState = (struct ParametersPanelState) {.separationFactorSpinnerEditMode = false,
                                                            .alignmentFactorSpinnerEditMode = false,
@@ -19,17 +30,6 @@ void InitializeParametersPanel(struct ParametersPanelState *parametersPanelState
 
                                                            .showRanges = false,
                                                            .showFPS = false};
-}
-
-struct GuiConfig CreateDefaultGuiConfig(float screenHeight) {
-    return (struct GuiConfig) {.padding = 5.f,
-                               .panelWidth = 200.f,
-                               .panelHeight = screenHeight,
-                               .headingHeight = 15.f,
-                               .spinnerHeight = 20.f,
-                               .spinnerWidth = 90.f,
-                               .checkboxHeight = 10.f,
-                               .buttonHeight = 20.f};
 }
 
 void DrawBoidRanges(const struct ParametersPanelState *parametersPanelState, const struct GuiConfig *guiConfig,

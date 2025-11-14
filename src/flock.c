@@ -1,5 +1,6 @@
 #include "flock.h"
 
+#include <raylib.h>
 #include <raymath.h>
 #include <stdlib.h>
 
@@ -20,12 +21,29 @@ struct FlockConfig CreateDefaultFlockConfig(const Rectangle flockBounds) {
                                  .maximumSpeed = 100.f};
 }
 
+static Boid *SpawnBoids(const int numberOfBoids, const Rectangle spawnBounds, const float startSpeed) {
+    Boid *boids = malloc(sizeof(Boid) * numberOfBoids);
+    if (boids == NULL) {
+        TraceLog(LOG_ERROR, "SpawnBoids: Failed to allocate memory for %d boids.", numberOfBoids);
+        return NULL;
+    }
+    for (int i = 0; i < numberOfBoids; i++) {
+        boids[i] = (Boid) {
+                (Vector2) {(float) GetRandomValue((int) spawnBounds.x, (int) (spawnBounds.x + spawnBounds.width)),
+                           (float) GetRandomValue((int) spawnBounds.y, (int) (spawnBounds.y + spawnBounds.height))},
+                Vector2Scale(Vector2Normalize(
+                                     (Vector2) {(float) GetRandomValue(-100, 100), (float) GetRandomValue(-100, 100)}),
+                             startSpeed)};
+    }
+    return boids;
+}
+
 bool InitializeFlock(struct FlockState *flockState, const struct FlockConfig *flockConfig) {
     *flockState = (struct FlockState) {.boids = SpawnBoids(flockConfig->numberOfBoids, flockConfig->flockBounds,
                                                            (flockConfig->minimumSpeed + flockConfig->maximumSpeed) / 2.f),
                                        .count = flockConfig->numberOfBoids,
                                        .collisionRate = 0.f,
-                                       .collisionRateMeasurementStart = 0.f};
+                                       .collisionRateMeasurementStart = (float) GetTime()};
 
     if (flockState->boids == NULL) {
         flockState->count = 0;

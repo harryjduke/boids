@@ -46,11 +46,8 @@ int main(int argc, char *argv[]) {
                 DrawParametersPanel(&parametersPanelState, &guiConfig, &flockState, &flockConfig);
         flockConfig = parametersPanelResult.newFlockConfig;
         if (parametersPanelResult.resetBoids) {
-            free(flockState.boids);
-            flockState.boids = SpawnBoids(flockConfig.numberOfBoids, flockConfig.flockBounds,
-                                          (flockConfig.minimumSpeed + flockConfig.maximumSpeed) / 2.f);
-            flockState.collisionRate = 0.f;
-            flockState.collisionRateMeasurementStart = (float) GetTime();
+            DestroyFlock(&flockState);
+            InitializeFlock(&flockState, &flockConfig);
         }
 
         EndDrawing();

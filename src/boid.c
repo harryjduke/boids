@@ -20,20 +20,3 @@ void DrawBoid(const Boid boid) {
 
     DrawTriangle(vertex1, vertex2, vertex3, BLUE);
 }
-
-Boid *SpawnBoids(const int numberOfBoids, const Rectangle spawnBounds, const float startSpeed) {
-    Boid *boids = malloc(sizeof(Boid) * numberOfBoids);
-    if (boids == NULL) {
-        TraceLog(LOG_ERROR, "SpawnBoids: Failed to allocate memory for %d boids.", numberOfBoids);
-        return NULL;
-    }
-    for (int i = 0; i < numberOfBoids; i++) {
-        boids[i] = (Boid) {
-                (Vector2) {(float) GetRandomValue((int) spawnBounds.x, (int) (spawnBounds.x + spawnBounds.width)),
-                           (float) GetRandomValue((int) spawnBounds.y, (int) (spawnBounds.y + spawnBounds.height))},
-                Vector2Scale(Vector2Normalize(
-                                     (Vector2) {(float) GetRandomValue(-100, 100), (float) GetRandomValue(-100, 100)}),
-                             startSpeed)};
-    }
-    return boids;
-}
