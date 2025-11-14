@@ -41,6 +41,11 @@ target_include_directories(game PRIVATE ${RAYGUI_INCLUDE_DIRS})
 target_include_directories(game PRIVATE include)
 target_link_libraries(game PRIVATE raylib)
 
+# Manually link math libraries for linux
+if(UNIX AND NOT APPLE)
+    target_link_libraries(game PRIVATE m)
+endif()
+
 # Set startup project (for visual studio solution generation)
 if (CMAKE_GENERATOR MATCHES "Visual Studio")
 	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
