@@ -18,6 +18,8 @@ int main(int argc, char *argv[]) {
     }
 
     struct GuiConfig guiConfig = CreateDefaultGuiConfig((float) screenHeight);
+    struct ParametersPanelState parametersPanelState;
+    InitializeParametersPanel(&parametersPanelState);
 
     InitWindow(screenWidth, screenHeight, "Boids");
     SetTargetFPS(60);
@@ -32,7 +34,7 @@ int main(int argc, char *argv[]) {
         ClearBackground(DARKGRAY);
 
         // Debug - draw ranges on the first boid
-        DrawBoidRanges(&guiConfig, &flockConfig, &flockState.boids[0]);
+        DrawBoidRanges(&parametersPanelState, &guiConfig, &flockConfig, &flockState.boids[0]);
 
         // Draw boids
         for (int i = 0; i < flockConfig.numberOfBoids; i++) {
@@ -41,7 +43,7 @@ int main(int argc, char *argv[]) {
 
         // Draw GUI
         const struct ParametersPanelResult parametersPanelResult =
-                DrawParametersPanel(&guiConfig, &flockState, &flockConfig);
+                DrawParametersPanel(&parametersPanelState, &guiConfig, &flockState, &flockConfig);
         flockConfig = parametersPanelResult.newFlockConfig;
         if (parametersPanelResult.resetBoids) {
             free(flockState.boids);
