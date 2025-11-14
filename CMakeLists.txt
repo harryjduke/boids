@@ -26,6 +26,7 @@ if (EXISTS "${CMAKE_SOURCE_DIR}/lib")
 endif ()
 
 find_package(raylib REQUIRED)
+find_package(glfw3 REQUIRED)
 find_path(RAYGUI_INCLUDE_DIRS "raygui.h")
 
 # --- BUILD PROJECT ---
@@ -39,7 +40,7 @@ add_executable(game
 
 target_include_directories(game PRIVATE ${RAYGUI_INCLUDE_DIRS})
 target_include_directories(game PRIVATE include)
-target_link_libraries(game PRIVATE raylib)
+target_link_libraries(game PRIVATE raylib glfw)
 
 # Manually link math libraries for linux
 if(UNIX AND NOT APPLE)
