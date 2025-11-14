@@ -33,7 +33,7 @@ struct FlockConfig {
 // State of boids flock
 struct FlockState {
     Boid *boids;
-    int count;
+    int boidsCount;
 
     // Debug values
     float collisionRate;

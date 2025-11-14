@@ -41,12 +41,12 @@ static Boid *SpawnBoids(const int numberOfBoids, const Rectangle spawnBounds, co
 bool InitializeFlock(struct FlockState *flockState, const struct FlockConfig *flockConfig) {
     *flockState = (struct FlockState) {.boids = SpawnBoids(flockConfig->numberOfBoids, flockConfig->flockBounds,
                                                            (flockConfig->minimumSpeed + flockConfig->maximumSpeed) / 2.f),
-                                       .count = flockConfig->numberOfBoids,
+                                       .boidsCount = flockConfig->numberOfBoids,
                                        .collisionRate = 0.f,
                                        .collisionRateMeasurementStart = (float) GetTime()};
 
     if (flockState->boids == NULL) {
-        flockState->count = 0;
+        flockState->boidsCount = 0;
         return false;
     }
 
@@ -54,7 +54,7 @@ bool InitializeFlock(struct FlockState *flockState, const struct FlockConfig *fl
 }
 
 void UpdateFlock(struct FlockState *flockState, const struct FlockConfig *flockConfig) {
-    for (int i = 0; i < flockConfig->numberOfBoids; i++) {
+    for (int i = 0; i < flockState->boidsCount; i++) {
         Vector2 separationForce = Vector2Zero();
         Vector2 alignmentForce = Vector2Zero();
         int boidsInAlignmentRange = 0;
@@ -62,7 +62,7 @@ void UpdateFlock(struct FlockState *flockState, const struct FlockConfig *flockC
         int boidsInCohesionRange = 0;
 
         // Calculate
-        for (int j = 0; j < flockConfig->numberOfBoids; j++) {
+        for (int j = 0; j < flockState->boidsCount; j++) {
             if (i == j)
                 continue;
             const float distanceToOtherBoid =
@@ -153,5 +153,5 @@ void DestroyFlock(struct FlockState *flockState) {
         free(flockState->boids);
         flockState->boids = NULL;
     }
-    flockState->count = 0;
+    flockState->boidsCount = 0;
 }
