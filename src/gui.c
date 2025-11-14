@@ -1,4 +1,5 @@
 #include "gui.h"
+#include <raylib.h>
 #include <stdbool.h>
 #include "flock.h"
 
@@ -32,8 +33,21 @@ void InitializeParametersPanel(struct ParametersPanelState *parametersPanelState
                                                            .showFPS = false};
 }
 
-void DrawBoidRanges(const struct ParametersPanelState *parametersPanelState, const struct GuiConfig *guiConfig,
-                    const struct FlockConfig *flockConfig, const Boid *boid) {
+void DrawBoidRanges(const struct ParametersPanelState *parametersPanelState, const struct FlockConfig *flockConfig,
+                    const Boid *boid) {
+    if (parametersPanelState == NULL) {
+        TraceLog(LOG_ERROR, "DrawBoidRanges: Recieved NULL pointer to parametersPanelState.");
+        return;
+    }
+    if (flockConfig == NULL) {
+        TraceLog(LOG_ERROR, "DrawBoidRanges: Recieved NULL pointer to flockConfig.");
+        return;
+    }
+    if (boid == NULL) {
+        TraceLog(LOG_ERROR, "DrawBoidRanges: Recieved NULL pointer to boid.");
+        return;
+    }
+
     if (!parametersPanelState->showRanges)
         return;
     DrawCircleV(boid->position, flockConfig->separationRange, Fade(GRAY, 0.5f));
@@ -45,6 +59,24 @@ struct ParametersPanelResult DrawParametersPanel(struct ParametersPanelState *pa
                                                  const struct GuiConfig *guiConfig, const struct FlockState *flockState,
                                                  const struct FlockConfig *flockConfig) {
     struct ParametersPanelResult result = {.resetBoids = false, .newFlockConfig = *flockConfig};
+
+    if (parametersPanelState == NULL) {
+        TraceLog(LOG_ERROR, "DrawParametersPanel: Recived NULL pointer to parametersPanelState.");
+        return result;
+    }
+    if (guiConfig == NULL) {
+        TraceLog(LOG_ERROR, "DrawParametersPanel: Recived NULL pointer to guiConfig.");
+        return result;
+    }
+    if (flockState == NULL) {
+        TraceLog(LOG_ERROR, "DrawParametersPanel: Recived NULL pointer to flockState.");
+        return result;
+    }
+    if (flockConfig == NULL) {
+        TraceLog(LOG_ERROR, "DrawParametersPanel: Recived NULL pointer to flockConfig.");
+        return result;
+    }
+
     GuiSetStyle(SPINNER, TEXT_ALIGNMENT, TEXT_ALIGN_RIGHT);
     GuiSetStyle(SPINNER, TEXT_PADDING, (int) guiConfig->padding);
 

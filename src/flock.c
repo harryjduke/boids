@@ -39,6 +39,11 @@ static Boid *SpawnBoids(const int numberOfBoids, const Rectangle spawnBounds, co
 }
 
 bool InitializeFlock(struct FlockState *flockState, const struct FlockConfig *flockConfig) {
+    if (flockConfig == NULL) {
+        TraceLog(LOG_ERROR, "InititializeFlock: Recieved NULL pointer to flockConfig.");
+        return false;
+    }
+
     *flockState = (struct FlockState) {.boids = SpawnBoids(flockConfig->numberOfBoids, flockConfig->flockBounds,
                                                            (flockConfig->minimumSpeed + flockConfig->maximumSpeed) / 2.f),
                                        .boidsCount = flockConfig->numberOfBoids,
@@ -46,7 +51,7 @@ bool InitializeFlock(struct FlockState *flockState, const struct FlockConfig *fl
                                        .collisionRateMeasurementStart = (float) GetTime()};
 
     if (flockState->boids == NULL) {
-        flockState->boidsCount = 0;
+        flockState = NULL;
         return false;
     }
 
@@ -54,6 +59,15 @@ bool InitializeFlock(struct FlockState *flockState, const struct FlockConfig *fl
 }
 
 void UpdateFlock(struct FlockState *flockState, const struct FlockConfig *flockConfig) {
+    if (flockState == NULL) {
+        TraceLog(LOG_ERROR, "UpdateFlock: Recieved NULL pointer to flockState.");
+        return;
+    }
+    if (flockConfig == NULL) {
+        TraceLog(LOG_ERROR, "UpdateFlock: Recieved NULL pointer to flockConfig.");
+        return;
+    }
+
     for (int i = 0; i < flockState->boidsCount; i++) {
         Vector2 separationForce = Vector2Zero();
         Vector2 alignmentForce = Vector2Zero();
@@ -149,6 +163,10 @@ void UpdateFlock(struct FlockState *flockState, const struct FlockConfig *flockC
 }
 
 void DestroyFlock(struct FlockState *flockState) {
+    if (flockState == NULL) {
+        TraceLog(LOG_ERROR, "DestroyFlock: Recieved NULL pointer to flockState.");
+        return;
+    }
     if (flockState->boids != NULL) {
         free(flockState->boids);
         flockState->boids = NULL;

@@ -48,8 +48,8 @@ struct ParametersPanelResult {
     struct FlockConfig newFlockConfig;
 };
 
-void DrawBoidRanges(const struct ParametersPanelState *parametersPanelState, const struct GuiConfig *guiConfig,
-                    const struct FlockConfig *flockConfig, const Boid *boid);
+void DrawBoidRanges(const struct ParametersPanelState *parametersPanelState, const struct FlockConfig *flockConfig,
+                    const Boid *boid);
 
 struct ParametersPanelResult DrawParametersPanel(struct ParametersPanelState *parametersPanelState,
                                                  const struct GuiConfig *guiConfig, const struct FlockState *flockState,

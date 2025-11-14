@@ -34,7 +34,7 @@ int main(int argc, char *argv[]) {
         ClearBackground(DARKGRAY);
 
         // Debug - draw ranges on the first boid
-        DrawBoidRanges(&parametersPanelState, &guiConfig, &flockConfig, &flockState.boids[0]);
+        DrawBoidRanges(&parametersPanelState, &flockConfig, &flockState.boids[0]);
 
         // Draw boids
         for (int i = 0; i < flockState.boidsCount; i++) {
