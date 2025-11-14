@@ -138,12 +138,12 @@ void UpdateFlock(struct FlockState *flockState, const struct FlockConfig *flockC
 
         // Loop around screen edges
         if (flockState->boids[i].position.x < flockConfig->flockBounds.x)
-            flockState->boids[i].position.x = flockConfig->flockBounds.width;
-        if (flockState->boids[i].position.x > flockConfig->flockBounds.width)
+            flockState->boids[i].position.x = flockConfig->flockBounds.x + flockConfig->flockBounds.width;
+        if (flockState->boids[i].position.x > flockConfig->flockBounds.x + flockConfig->flockBounds.width)
             flockState->boids[i].position.x = flockConfig->flockBounds.x;
         if (flockState->boids[i].position.y < flockConfig->flockBounds.y)
-            flockState->boids[i].position.y = flockConfig->flockBounds.height;
-        if (flockState->boids[i].position.y > flockConfig->flockBounds.height)
+            flockState->boids[i].position.y = flockConfig->flockBounds.y + flockConfig->flockBounds.height;
+        if (flockState->boids[i].position.y > flockConfig->flockBounds.y + flockConfig->flockBounds.height)
             flockState->boids[i].position.y = flockConfig->flockBounds.y;
     }
 }
