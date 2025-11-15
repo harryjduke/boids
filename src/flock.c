@@ -2,6 +2,7 @@
 
 #include <raylib.h>
 #include <raymath.h>
+#include <stdbool.h>
 #include <stdlib.h>
 
 struct FlockConfig CreateDefaultFlockConfig(const Rectangle flockBounds) {
@@ -38,33 +39,100 @@ static Boid *SpawnBoids(const int numberOfBoids, const Rectangle spawnBounds, co
     return boids;
 }
 
-bool InitializeFlock(struct FlockState *flockState, const struct FlockConfig *flockConfig) {
-    if (flockConfig == NULL) {
-        TraceLog(LOG_ERROR, "InititializeFlock: Recieved NULL pointer to flockConfig.");
+enum FlockConfigValidationResult {
+    FLOCK_CONFIG_VALID = 0,
+    FLOCK_CONFIG_INVALID_NULL,
+    FLOCK_CONFIG_INVALID_BOID_COUNT,
+    FLOCK_CONFIG_INVALID_BOUNDS,
+    FLOCK_CONFIG_INVALID_SPEED_RANGE,
+    FLOCK_CONFIG_INVALID_RANGE
+};
+
+// Internal function that returns a human-readable error message for a flock config validation result
+static const char *FlockConfigValidationMessage(enum FlockConfigValidationResult validationResult) {
+    switch (validationResult) {
+        case FLOCK_CONFIG_VALID:
+            return "configuration is valid";
+        case FLOCK_CONFIG_INVALID_NULL:
+            return "configuration is NULL";
+        case FLOCK_CONFIG_INVALID_BOID_COUNT:
+            return "number of boids must be greater than 0";
+        case FLOCK_CONFIG_INVALID_BOUNDS:
+            return "flock bounds must have a positive width and height";
+        case FLOCK_CONFIG_INVALID_SPEED_RANGE:
+            return "speed range invalid: minimum must be <= maximum and both must be greater than 0";
+        case FLOCK_CONFIG_INVALID_RANGE:
+            return "force ranges must be non-negative";
+        default:
+            return "unknown validation error";
+    }
+}
+
+// Internal function for validating flock configs
+static enum FlockConfigValidationResult ValidateFlockConfig(const struct FlockConfig *config) {
+    if (config == NULL)
+        return FLOCK_CONFIG_INVALID_NULL;
+    if (config->numberOfBoids <= 0)
+        return FLOCK_CONFIG_INVALID_BOID_COUNT;
+    if (config->flockBounds.width <= 0.f || config->flockBounds.height <= 0.f)
+        return FLOCK_CONFIG_INVALID_BOUNDS;
+    if (config->clampSpeed && (config->minimumSpeed > config->maximumSpeed || config->minimumSpeed < 0.f))
+        return FLOCK_CONFIG_INVALID_SPEED_RANGE;
+    if (config->separationRange < 0.f || config->alignmentRange < 0.f || config->cohesionRange < 0.f)
+        return FLOCK_CONFIG_INVALID_RANGE;
+
+    // NOTE: Negative flock factors are not considered invalid.
+
+    return FLOCK_CONFIG_VALID;
+}
+
+bool InitializeFlock(struct FlockState *flockState, const struct FlockConfig flockConfig) {
+    enum FlockConfigValidationResult validationResult = ValidateFlockConfig(&flockConfig);
+    if (validationResult != FLOCK_CONFIG_VALID) {
+        TraceLog(LOG_ERROR, "InitializeFlock: Failed due to invalid flock config, %s.",
+                 FlockConfigValidationMessage(validationResult));
         return false;
     }
 
-    *flockState = (struct FlockState) {.boids = SpawnBoids(flockConfig->numberOfBoids, flockConfig->flockBounds,
-                                                           (flockConfig->minimumSpeed + flockConfig->maximumSpeed) / 2.f),
-                                       .boidsCount = flockConfig->numberOfBoids,
+    Boid *boids = SpawnBoids(flockConfig.numberOfBoids, flockConfig.flockBounds,
+                             (flockConfig.minimumSpeed + flockConfig.maximumSpeed) / 2.f);
+
+    if (boids == NULL) {
+        TraceLog(LOG_ERROR, "InitializeFlock: Failed to allocate boids.");
+        return false;
+    }
+
+    *flockState = (struct FlockState) {.boids = boids,
+                                       .boidsCount = flockConfig.numberOfBoids,
+                                       .flockConfig = flockConfig,
                                        .collisionRate = 0.f,
                                        .collisionRateMeasurementStart = (float) GetTime()};
-
-    if (flockState->boids == NULL) {
-        flockState = NULL;
-        return false;
-    }
 
     return true;
 }
 
-void UpdateFlock(struct FlockState *flockState, const struct FlockConfig *flockConfig) {
+void ModifyFlockConfig(struct FlockState *flockState, struct FlockConfig newFlockConfig) {
     if (flockState == NULL) {
-        TraceLog(LOG_ERROR, "UpdateFlock: Recieved NULL pointer to flockState.");
+        TraceLog(LOG_ERROR, "ModifyFlockConfig: Recieved NULL pointer to flockState.");
         return;
     }
-    if (flockConfig == NULL) {
-        TraceLog(LOG_ERROR, "UpdateFlock: Recieved NULL pointer to flockConfig.");
+
+    // NOTE: We don't check if the config has actually changed here because although this function will likely be called
+    // every frame when a GUI is used, comparing the configs for an early exit will (probably?) not be much faster
+
+    enum FlockConfigValidationResult validationResult = ValidateFlockConfig(&newFlockConfig);
+    if (validationResult != FLOCK_CONFIG_VALID) {
+        TraceLog(LOG_ERROR, "InitializeFlock: Failed due to invalid flock config, %s.",
+                 FlockConfigValidationMessage(validationResult));
+        return;
+    }
+
+    flockState->flockConfig = newFlockConfig;
+}
+
+void UpdateFlock(struct FlockState *flockState) {
+    if (flockState == NULL) {
+        TraceLog(LOG_ERROR, "UpdateFlock: Recieved NULL pointer to flockState.");
         return;
     }
 
@@ -85,7 +153,7 @@ void UpdateFlock(struct FlockState *flockState, const struct FlockConfig *flockC
             // Separation
             // A force pushing away from other boids, the smaller distance between the boids, the
             // stronger the force.
-            if (distanceToOtherBoid < flockConfig->separationRange && distanceToOtherBoid > 0.001f) {
+            if (distanceToOtherBoid < flockState->flockConfig.separationRange && distanceToOtherBoid > 0.001f) {
                 Vector2 separationOffset =
                         Vector2Subtract(flockState->boids[i].position, flockState->boids[j].position);
                 separationForce = Vector2Add(separationForce,
@@ -94,14 +162,14 @@ void UpdateFlock(struct FlockState *flockState, const struct FlockConfig *flockC
 
             // Alignment
             // Adjusts the velocity towards the average velocity of the boids within range.
-            if (distanceToOtherBoid < flockConfig->alignmentRange) {
+            if (distanceToOtherBoid < flockState->flockConfig.alignmentRange) {
                 alignmentForce = Vector2Add(alignmentForce, flockState->boids[j].velocity);
                 boidsInAlignmentRange++;
             }
 
             // Cohesion
             // A force towards the centre of the boids within range.
-            if (distanceToOtherBoid < flockConfig->cohesionRange) {
+            if (distanceToOtherBoid < flockState->flockConfig.cohesionRange) {
                 cohesionForce = Vector2Add(cohesionForce, flockState->boids[j].position);
                 boidsInCohesionRange++;
             }
@@ -115,34 +183,35 @@ void UpdateFlock(struct FlockState *flockState, const struct FlockConfig *flockC
         // Apply
 
         // Separation
-        flockState->boids[i].velocity =
-                Vector2Add(flockState->boids[i].velocity, Vector2Scale(separationForce, flockConfig->separationFactor));
+        flockState->boids[i].velocity = Vector2Add(
+                flockState->boids[i].velocity, Vector2Scale(separationForce, flockState->flockConfig.separationFactor));
 
         // Alignment
         if (boidsInAlignmentRange > 0) {
             alignmentForce = Vector2Scale(alignmentForce, 1.f / (float) boidsInAlignmentRange);
             alignmentForce = Vector2Subtract(alignmentForce, flockState->boids[i].velocity);
-            flockState->boids[i].velocity = Vector2Add(flockState->boids[i].velocity,
-                                                       Vector2Scale(alignmentForce, flockConfig->alignmentFactor));
+            flockState->boids[i].velocity =
+                    Vector2Add(flockState->boids[i].velocity,
+                               Vector2Scale(alignmentForce, flockState->flockConfig.alignmentFactor));
         }
 
         // Cohesion
         if (boidsInCohesionRange > 0) {
             cohesionForce = Vector2Scale(cohesionForce, 1.f / (float) boidsInCohesionRange);
             cohesionForce = Vector2Subtract(cohesionForce, flockState->boids[i].position);
-            flockState->boids[i].velocity =
-                    Vector2Add(flockState->boids[i].velocity, Vector2Scale(cohesionForce, flockConfig->cohesionFactor));
+            flockState->boids[i].velocity = Vector2Add(
+                    flockState->boids[i].velocity, Vector2Scale(cohesionForce, flockState->flockConfig.cohesionFactor));
         }
 
         // Clamp boid speed
-        if (flockConfig->clampSpeed) {
+        if (flockState->flockConfig.clampSpeed) {
             float speed = Vector2Length(flockState->boids[i].velocity);
-            if (speed > flockConfig->maximumSpeed) {
-                flockState->boids[i].velocity =
-                        Vector2Scale(flockState->boids[i].velocity, (1.f / speed) * flockConfig->maximumSpeed);
-            } else if (speed < flockConfig->minimumSpeed) {
-                flockState->boids[i].velocity =
-                        Vector2Scale(flockState->boids[i].velocity, (1.f / speed) * flockConfig->minimumSpeed);
+            if (speed > flockState->flockConfig.maximumSpeed) {
+                flockState->boids[i].velocity = Vector2Scale(flockState->boids[i].velocity,
+                                                             (1.f / speed) * flockState->flockConfig.maximumSpeed);
+            } else if (speed < flockState->flockConfig.minimumSpeed) {
+                flockState->boids[i].velocity = Vector2Scale(flockState->boids[i].velocity,
+                                                             (1.f / speed) * flockState->flockConfig.minimumSpeed);
             }
         }
 
@@ -151,14 +220,18 @@ void UpdateFlock(struct FlockState *flockState, const struct FlockConfig *flockC
         flockState->boids[i].position.y += flockState->boids[i].velocity.y * GetFrameTime();
 
         // Loop around screen edges
-        if (flockState->boids[i].position.x < flockConfig->flockBounds.x)
-            flockState->boids[i].position.x = flockConfig->flockBounds.x + flockConfig->flockBounds.width;
-        if (flockState->boids[i].position.x > flockConfig->flockBounds.x + flockConfig->flockBounds.width)
-            flockState->boids[i].position.x = flockConfig->flockBounds.x;
-        if (flockState->boids[i].position.y < flockConfig->flockBounds.y)
-            flockState->boids[i].position.y = flockConfig->flockBounds.y + flockConfig->flockBounds.height;
-        if (flockState->boids[i].position.y > flockConfig->flockBounds.y + flockConfig->flockBounds.height)
-            flockState->boids[i].position.y = flockConfig->flockBounds.y;
+        if (flockState->boids[i].position.x < flockState->flockConfig.flockBounds.x)
+            flockState->boids[i].position.x =
+                    flockState->flockConfig.flockBounds.x + flockState->flockConfig.flockBounds.width;
+        if (flockState->boids[i].position.x >
+            flockState->flockConfig.flockBounds.x + flockState->flockConfig.flockBounds.width)
+            flockState->boids[i].position.x = flockState->flockConfig.flockBounds.x;
+        if (flockState->boids[i].position.y < flockState->flockConfig.flockBounds.y)
+            flockState->boids[i].position.y =
+                    flockState->flockConfig.flockBounds.y + flockState->flockConfig.flockBounds.height;
+        if (flockState->boids[i].position.y >
+            flockState->flockConfig.flockBounds.y + flockState->flockConfig.flockBounds.height)
+            flockState->boids[i].position.y = flockState->flockConfig.flockBounds.y;
     }
 }
 

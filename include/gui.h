@@ -8,14 +8,14 @@
 
 // GUI config
 struct GuiConfig {
-    const float padding;
-    const float panelWidth;
-    const float panelHeight;
-    const float headingHeight;
-    const float spinnerHeight;
-    const float spinnerWidth;
-    const float checkboxHeight;
-    const float buttonHeight;
+    float padding;
+    float panelWidth;
+    float panelHeight;
+    float headingHeight;
+    float spinnerHeight;
+    float spinnerWidth;
+    float checkboxHeight;
+    float buttonHeight;
 };
 
 // GUI state
@@ -37,22 +37,24 @@ struct ParametersPanelState {
     // GUI element toggles
     bool showRanges;
     bool showFPS;
+
+    // Current config for GUI
+    struct GuiConfig guiConfig;
 };
 
 struct GuiConfig CreateDefaultGuiConfig(float screenHeight);
 
-void InitializeParametersPanel(struct ParametersPanelState *parametersPanelState);
+void InitializeParametersPanel(struct ParametersPanelState *parametersPanelState, struct GuiConfig guiConfig);
 
 struct ParametersPanelResult {
     bool resetBoids;
     struct FlockConfig newFlockConfig;
 };
 
-void DrawBoidRanges(const struct ParametersPanelState *parametersPanelState, const struct FlockConfig *flockConfig,
+void DrawBoidRanges(const struct ParametersPanelState *parametersPanelState, const struct FlockState *flockState,
                     const Boid *boid);
 
 struct ParametersPanelResult DrawParametersPanel(struct ParametersPanelState *parametersPanelState,
-                                                 const struct GuiConfig *guiConfig, const struct FlockState *flockState,
-                                                 const struct FlockConfig *flockConfig);
+                                                 const struct FlockState *flockState);
 
 #endif // !GUI_H

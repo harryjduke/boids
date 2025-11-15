@@ -2,8 +2,6 @@
 
 #include <raylib.h>
 #include <raymath.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 void DrawBoid(const Boid boid) {
     const Vector2 forwardVector = Vector2Normalize(boid.velocity);

@@ -1,4 +1,5 @@
 #include <raylib.h>
+#include <raymath.h>
 #include <stdlib.h>
 
 #include "flock.h"
@@ -8,25 +9,23 @@ int main(int argc, char *argv[]) {
     const int screenWidth = 1600;
     const int screenHeight = 900;
 
-    struct FlockConfig flockConfig =
-            CreateDefaultFlockConfig((Rectangle) {0.f, 0.f, (float) screenWidth, (float) screenHeight});
     struct FlockState flockState;
-    if (!InitializeFlock(&flockState, &flockConfig)) {
-        TraceLog(LOG_FATAL, "Could not initialise flock. Exiting.");
+    if (!InitializeFlock(&flockState,
+                         CreateDefaultFlockConfig((Rectangle) {0.f, 0.f, (float) screenWidth, (float) screenHeight}))) {
+        TraceLog(LOG_FATAL, "Failed to initialise flock. Exiting.");
         CloseWindow();
         return EXIT_FAILURE;
     }
-
     struct GuiConfig guiConfig = CreateDefaultGuiConfig((float) screenHeight);
     struct ParametersPanelState parametersPanelState;
-    InitializeParametersPanel(&parametersPanelState);
+    InitializeParametersPanel(&parametersPanelState, CreateDefaultGuiConfig((float) screenHeight));
 
     InitWindow(screenWidth, screenHeight, "Boids");
     SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
         // Update
-        UpdateFlock(&flockState, &flockConfig);
+        UpdateFlock(&flockState);
 
         // Draw
         BeginDrawing();
@@ -34,7 +33,7 @@ int main(int argc, char *argv[]) {
         ClearBackground(DARKGRAY);
 
         // Debug - draw ranges on the first boid
-        DrawBoidRanges(&parametersPanelState, &flockConfig, &flockState.boids[0]);
+        DrawBoidRanges(&parametersPanelState, &flockState, &flockState.boids[0]);
 
         // Draw boids
         for (int i = 0; i < flockState.boidsCount; i++) {
@@ -43,11 +42,14 @@ int main(int argc, char *argv[]) {
 
         // Draw GUI
         const struct ParametersPanelResult parametersPanelResult =
-                DrawParametersPanel(&parametersPanelState, &guiConfig, &flockState, &flockConfig);
-        flockConfig = parametersPanelResult.newFlockConfig;
+                DrawParametersPanel(&parametersPanelState, &flockState);
         if (parametersPanelResult.resetBoids) {
             DestroyFlock(&flockState);
-            InitializeFlock(&flockState, &flockConfig);
+            if (!InitializeFlock(&flockState, parametersPanelResult.newFlockConfig)) {
+                TraceLog(LOG_FATAL, "Failed to reinitialise flock. Exiting.");
+            }
+        } else {
+            ModifyFlockConfig(&flockState, parametersPanelResult.newFlockConfig);
         }
 
         EndDrawing();
