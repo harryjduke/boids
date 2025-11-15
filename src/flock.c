@@ -242,7 +242,7 @@ void UpdateFlock(struct FlockState *flockState) {
         TraceLog(LOG_ERROR, "UpdateFlock: Failed to allocate memory for the steering vectors of %d boids.",
                  flockState->boidsCount);
         return;
-    }
+   }
 
     float totalCollisionTime = 0.f;
 
