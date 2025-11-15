@@ -63,11 +63,11 @@ struct ParametersPanelResult DrawParametersPanel(struct ParametersPanelState *pa
     struct ParametersPanelResult result = {.resetBoids = false, .newFlockConfig = flockState->config};
 
     if (parametersPanelState == NULL) {
-        TraceLog(LOG_ERROR, "DrawParametersPanel: Recived NULL pointer to parametersPanelState.");
+        TraceLog(LOG_ERROR, "DrawParametersPanel: Recieved NULL pointer to parametersPanelState.");
         return result;
     }
     if (flockState == NULL) {
-        TraceLog(LOG_ERROR, "DrawParametersPanel: Recived NULL pointer to flockState.");
+        TraceLog(LOG_ERROR, "DrawParametersPanel: Recieved NULL pointer to flockState.");
         return result;
     }
 
