@@ -155,7 +155,7 @@ static Vector2 CalculateSteeringVector(int boidIndex, const struct FlockState *f
         // Separation
         // A force pushing away from other boids, the smaller distance between the boids, the
         // stronger the force.
-        if (distanceToOtherBoid < flockState->config.separationRange && distanceToOtherBoid > 0.001f) {
+        if (distanceToOtherBoid < flockState->config.separationRange && distanceToOtherBoid > EPSILON) {
             Vector2 separationOffset = Vector2Subtract(boid->position, otherBoid->position);
             separationVector =
                     Vector2Add(separationVector, Vector2Scale(separationOffset, 1.f / powf(distanceToOtherBoid, 2.f)));
