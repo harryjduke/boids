@@ -192,6 +192,9 @@ struct ParametersPanelResult DrawParametersPanel(struct ParametersPanelState *pa
                    "Number of Boids", &result.newFlockConfig.numberOfBoids, 1, 10000,
                    parametersPanelState->numberOfBoidsSpinnerEditMode))
         parametersPanelState->numberOfBoidsSpinnerEditMode = !parametersPanelState->numberOfBoidsSpinnerEditMode;
+    // Although the minimum is 1, deleting all the digits in the spinner still returns 0
+    if (result.newFlockConfig.numberOfBoids <= 0)
+        result.newFlockConfig.numberOfBoids = 1;
     // Reset boids when the number is changed to prevent buffer overflow.
     // TODO: Change to dynamically resize the buffer.
     if (flockState->config.numberOfBoids != result.newFlockConfig.numberOfBoids) {
