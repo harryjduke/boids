@@ -18,7 +18,8 @@ struct GuiConfig CreateDefaultGuiConfig(float screenHeight) {
 }
 
 void InitializeParametersPanel(struct ParametersPanelState *parametersPanelState, const struct GuiConfig config) {
-    // TODO: Validate config
+    // NOTE: We can skip config validation because an invalid config will only result in a visually broken GUI and not
+    // cause any errors or crashes, this may change in the future.
     *parametersPanelState = (struct ParametersPanelState) {.separationFactorSpinnerEditMode = false,
                                                            .alignmentFactorSpinnerEditMode = false,
                                                            .cohesionFactorSpinnerEditMode = false,
@@ -192,7 +193,7 @@ struct ParametersPanelResult DrawParametersPanel(struct ParametersPanelState *pa
                    parametersPanelState->numberOfBoidsSpinnerEditMode))
         parametersPanelState->numberOfBoidsSpinnerEditMode = !parametersPanelState->numberOfBoidsSpinnerEditMode;
     // Reset boids when the number is changed to prevent buffer overflow.
-    // TODO: Chang to dynamically resize the buffer.
+    // TODO: Change to dynamically resize the buffer.
     if (flockState->config.numberOfBoids != result.newFlockConfig.numberOfBoids) {
         result.resetBoids = true;
     }
