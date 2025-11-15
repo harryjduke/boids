@@ -39,12 +39,12 @@ struct ParametersPanelState {
     bool showFPS;
 
     // Current config for GUI
-    struct GuiConfig guiConfig;
+    struct GuiConfig config;
 };
 
 struct GuiConfig CreateDefaultGuiConfig(float screenHeight);
 
-void InitializeParametersPanel(struct ParametersPanelState *parametersPanelState, struct GuiConfig guiConfig);
+void InitializeParametersPanel(struct ParametersPanelState *parametersPanelState, struct GuiConfig config);
 
 struct ParametersPanelResult {
     bool resetBoids;
