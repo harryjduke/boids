@@ -4,6 +4,7 @@
 #include <raymath.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include "boid.h"
 
 struct FlockConfig CreateDefaultFlockConfig(const Rectangle flockBounds) {
     return (struct FlockConfig) {.flockBounds = flockBounds,
@@ -105,8 +106,8 @@ bool InitializeFlock(struct FlockState *flockState, const struct FlockConfig con
     *flockState = (struct FlockState) {.boids = boids,
                                        .boidsCount = config.numberOfBoids,
                                        .config = config,
-                                       .collisionRate = 0.f,
-                                       .collisionRateMeasurementStart = (float) GetTime()};
+                                       .collisionTime = 0.f,
+                                       .collisionTimeStart = (float) GetTime()};
 
     return true;
 }
@@ -130,104 +131,135 @@ void ModifyFlockConfig(struct FlockState *flockState, struct FlockConfig newConf
     flockState->config = newConfig;
 }
 
+// Internal function that calculates the steering vector (total separation, alignment and cohesion) for the given boid.
+// NOTE: This function also has an out parameter that will be set to the collision time for the given boid.
+static Vector2 CalculateSteeringVector(int boidIndex, const struct FlockState *flockState, float *outCollisionTime) {
+    const Boid *boid = &flockState->boids[boidIndex];
+
+    Vector2 separationVector = Vector2Zero();
+    Vector2 alignmentVector = Vector2Zero();
+    int boidsInAlignmentRange = 0;
+    Vector2 cohesionVector = Vector2Zero();
+    int boidsInCohesionRange = 0;
+
+    float collisionTime = 0.f;
+
+    for (int i = 0; i < flockState->boidsCount; i++) {
+        if (boidIndex == i)
+            continue;
+
+        const Boid *otherBoid = &flockState->boids[i];
+
+        const float distanceToOtherBoid = Vector2Distance(boid->position, otherBoid->position);
+
+        // Separation
+        // A force pushing away from other boids, the smaller distance between the boids, the
+        // stronger the force.
+        if (distanceToOtherBoid < flockState->config.separationRange && distanceToOtherBoid > 0.001f) {
+            Vector2 separationOffset = Vector2Subtract(boid->position, otherBoid->position);
+            separationVector =
+                    Vector2Add(separationVector, Vector2Scale(separationOffset, 1.f / powf(distanceToOtherBoid, 2.f)));
+        }
+
+        // Alignment
+        // Adjusts the velocity towards the average velocity of the boids within range.
+        if (distanceToOtherBoid < flockState->config.alignmentRange) {
+            alignmentVector = Vector2Add(alignmentVector, otherBoid->velocity);
+            boidsInAlignmentRange++;
+        }
+
+        // Cohesion
+        // A force towards the centre of the boids within range.
+        if (distanceToOtherBoid < flockState->config.cohesionRange) {
+            cohesionVector = Vector2Add(cohesionVector, otherBoid->position);
+            boidsInCohesionRange++;
+        }
+
+        // Debug values
+        if (distanceToOtherBoid < 5.f) {
+            collisionTime += GetFrameTime();
+        }
+    }
+
+    Vector2 steeringVector = Vector2Zero();
+
+    // Separation
+    steeringVector = Vector2Add(steeringVector, Vector2Scale(separationVector, flockState->config.separationFactor));
+
+    // Alignment
+    if (boidsInAlignmentRange > 0) {
+        alignmentVector = Vector2Scale(alignmentVector, 1.f / (float) boidsInAlignmentRange);
+        alignmentVector = Vector2Subtract(alignmentVector, boid->velocity);
+        steeringVector = Vector2Add(steeringVector, Vector2Scale(alignmentVector, flockState->config.alignmentFactor));
+    }
+
+    // Cohesion
+    if (boidsInCohesionRange > 0) {
+        cohesionVector = Vector2Scale(cohesionVector, 1.f / (float) boidsInCohesionRange);
+        cohesionVector = Vector2Subtract(cohesionVector, boid->position);
+        steeringVector = Vector2Add(steeringVector, Vector2Scale(cohesionVector, flockState->config.cohesionFactor));
+    }
+
+    *outCollisionTime = collisionTime;
+    return steeringVector;
+}
+
+// Internal function that updates the given boid's position by applying its velocity (clamped by min/max speed).
+static void UpdateBoidPosition(Boid *boid, const struct FlockState *flockState) {
+    // Clamp boid speed
+    if (flockState->config.clampSpeed) {
+        float speed = Vector2Length(boid->velocity);
+        if (speed > flockState->config.maximumSpeed) {
+            boid->velocity = Vector2Scale(boid->velocity, (1.f / speed) * flockState->config.maximumSpeed);
+        } else if (speed < flockState->config.minimumSpeed) {
+            boid->velocity = Vector2Scale(boid->velocity, (1.f / speed) * flockState->config.minimumSpeed);
+        }
+    }
+
+    // Update position
+    boid->position.x += boid->velocity.x * GetFrameTime();
+    boid->position.y += boid->velocity.y * GetFrameTime();
+
+    // Loop around screen edges
+    if (boid->position.x < flockState->config.flockBounds.x)
+        boid->position.x = flockState->config.flockBounds.x + flockState->config.flockBounds.width;
+    if (boid->position.x > flockState->config.flockBounds.x + flockState->config.flockBounds.width)
+        boid->position.x = flockState->config.flockBounds.x;
+    if (boid->position.y < flockState->config.flockBounds.y)
+        boid->position.y = flockState->config.flockBounds.y + flockState->config.flockBounds.height;
+    if (boid->position.y > flockState->config.flockBounds.y + flockState->config.flockBounds.height)
+        boid->position.y = flockState->config.flockBounds.y;
+}
+
 void UpdateFlock(struct FlockState *flockState) {
     if (flockState == NULL) {
         TraceLog(LOG_ERROR, "UpdateFlock: Recieved NULL pointer to flockState.");
         return;
     }
 
-    for (int i = 0; i < flockState->boidsCount; i++) {
-        Vector2 separationForce = Vector2Zero();
-        Vector2 alignmentForce = Vector2Zero();
-        int boidsInAlignmentRange = 0;
-        Vector2 cohesionForce = Vector2Zero();
-        int boidsInCohesionRange = 0;
-
-        // Calculate
-        for (int j = 0; j < flockState->boidsCount; j++) {
-            if (i == j)
-                continue;
-            const float distanceToOtherBoid =
-                    Vector2Distance(flockState->boids[i].position, flockState->boids[j].position);
-
-            // Separation
-            // A force pushing away from other boids, the smaller distance between the boids, the
-            // stronger the force.
-            if (distanceToOtherBoid < flockState->config.separationRange && distanceToOtherBoid > 0.001f) {
-                Vector2 separationOffset =
-                        Vector2Subtract(flockState->boids[i].position, flockState->boids[j].position);
-                separationForce = Vector2Add(separationForce,
-                                             Vector2Scale(separationOffset, 1.f / powf(distanceToOtherBoid, 2.f)));
-            }
-
-            // Alignment
-            // Adjusts the velocity towards the average velocity of the boids within range.
-            if (distanceToOtherBoid < flockState->config.alignmentRange) {
-                alignmentForce = Vector2Add(alignmentForce, flockState->boids[j].velocity);
-                boidsInAlignmentRange++;
-            }
-
-            // Cohesion
-            // A force towards the centre of the boids within range.
-            if (distanceToOtherBoid < flockState->config.cohesionRange) {
-                cohesionForce = Vector2Add(cohesionForce, flockState->boids[j].position);
-                boidsInCohesionRange++;
-            }
-
-            // Debug values
-            if (distanceToOtherBoid < 5.f) {
-                flockState->collisionRate += GetFrameTime();
-            }
-        }
-
-        // Apply
-
-        // Separation
-        flockState->boids[i].velocity = Vector2Add(flockState->boids[i].velocity,
-                                                   Vector2Scale(separationForce, flockState->config.separationFactor));
-
-        // Alignment
-        if (boidsInAlignmentRange > 0) {
-            alignmentForce = Vector2Scale(alignmentForce, 1.f / (float) boidsInAlignmentRange);
-            alignmentForce = Vector2Subtract(alignmentForce, flockState->boids[i].velocity);
-            flockState->boids[i].velocity = Vector2Add(
-                    flockState->boids[i].velocity, Vector2Scale(alignmentForce, flockState->config.alignmentFactor));
-        }
-
-        // Cohesion
-        if (boidsInCohesionRange > 0) {
-            cohesionForce = Vector2Scale(cohesionForce, 1.f / (float) boidsInCohesionRange);
-            cohesionForce = Vector2Subtract(cohesionForce, flockState->boids[i].position);
-            flockState->boids[i].velocity = Vector2Add(flockState->boids[i].velocity,
-                                                       Vector2Scale(cohesionForce, flockState->config.cohesionFactor));
-        }
-
-        // Clamp boid speed
-        if (flockState->config.clampSpeed) {
-            float speed = Vector2Length(flockState->boids[i].velocity);
-            if (speed > flockState->config.maximumSpeed) {
-                flockState->boids[i].velocity =
-                        Vector2Scale(flockState->boids[i].velocity, (1.f / speed) * flockState->config.maximumSpeed);
-            } else if (speed < flockState->config.minimumSpeed) {
-                flockState->boids[i].velocity =
-                        Vector2Scale(flockState->boids[i].velocity, (1.f / speed) * flockState->config.minimumSpeed);
-            }
-        }
-
-        // Update position
-        flockState->boids[i].position.x += flockState->boids[i].velocity.x * GetFrameTime();
-        flockState->boids[i].position.y += flockState->boids[i].velocity.y * GetFrameTime();
-
-        // Loop around screen edges
-        if (flockState->boids[i].position.x < flockState->config.flockBounds.x)
-            flockState->boids[i].position.x = flockState->config.flockBounds.x + flockState->config.flockBounds.width;
-        if (flockState->boids[i].position.x > flockState->config.flockBounds.x + flockState->config.flockBounds.width)
-            flockState->boids[i].position.x = flockState->config.flockBounds.x;
-        if (flockState->boids[i].position.y < flockState->config.flockBounds.y)
-            flockState->boids[i].position.y = flockState->config.flockBounds.y + flockState->config.flockBounds.height;
-        if (flockState->boids[i].position.y > flockState->config.flockBounds.y + flockState->config.flockBounds.height)
-            flockState->boids[i].position.y = flockState->config.flockBounds.y;
+    Vector2 *steeringVectors = malloc(sizeof(Vector2) * flockState->boidsCount);
+    if (steeringVectors == NULL) {
+        TraceLog(LOG_ERROR, "UpdateFlock: Failed to allocate memory for the steering vectors of %d boids.",
+                 flockState->boidsCount);
+        return;
     }
+
+    float totalCollisionTime = 0.f;
+
+    for (int i = 0; i < flockState->boidsCount; i++) {
+        float boidCollisionTime = 0.f;
+        steeringVectors[i] = CalculateSteeringVector(i, flockState, &boidCollisionTime);
+        totalCollisionTime += boidCollisionTime;
+    }
+
+    flockState->collisionTime += totalCollisionTime;
+
+    for (int i = 0; i < flockState->boidsCount; i++) {
+        flockState->boids[i].velocity = Vector2Add(flockState->boids[i].velocity, steeringVectors[i]);
+        UpdateBoidPosition(&flockState->boids[i], flockState);
+    }
+
+    free(steeringVectors);
 }
 
 void DestroyFlock(struct FlockState *flockState) {

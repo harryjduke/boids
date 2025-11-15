@@ -38,8 +38,8 @@ struct FlockState {
     struct FlockConfig config;
 
     // Debug values
-    float collisionRate;
-    float collisionRateMeasurementStart;
+    float collisionTime;
+    float collisionTimeStart;
 };
 
 struct FlockConfig CreateDefaultFlockConfig(Rectangle flockBounds);
