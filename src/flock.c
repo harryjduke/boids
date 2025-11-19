@@ -23,23 +23,6 @@ struct FlockConfig CreateDefaultFlockConfig(const Rectangle flockBounds) {
                                  .maximumSpeed = 100.f};
 }
 
-static Boid *SpawnBoids(const int numberOfBoids, const Rectangle spawnBounds, const float startSpeed) {
-    Boid *boids = malloc(sizeof(Boid) * numberOfBoids);
-    if (boids == NULL) {
-        TraceLog(LOG_ERROR, "SpawnBoids: Failed to allocate memory for %d boids.", numberOfBoids);
-        return NULL;
-    }
-    for (int i = 0; i < numberOfBoids; i++) {
-        boids[i] = (Boid) {
-                (Vector2) {(float) GetRandomValue((int) spawnBounds.x, (int) (spawnBounds.x + spawnBounds.width)),
-                           (float) GetRandomValue((int) spawnBounds.y, (int) (spawnBounds.y + spawnBounds.height))},
-                Vector2Scale(Vector2Normalize(
-                                     (Vector2) {(float) GetRandomValue(-100, 100), (float) GetRandomValue(-100, 100)}),
-                             startSpeed)};
-    }
-    return boids;
-}
-
 enum FlockConfigValidationResult {
     FLOCK_CONFIG_VALID = 0,
     FLOCK_CONFIG_INVALID_NULL,
@@ -87,6 +70,23 @@ static enum FlockConfigValidationResult ValidateFlockConfig(const struct FlockCo
     return FLOCK_CONFIG_VALID;
 }
 
+static Boid *SpawnBoids(const int numberOfBoids, const Rectangle spawnBounds, const float startSpeed) {
+    Boid *boids = malloc(sizeof(Boid) * numberOfBoids);
+    if (boids == NULL) {
+        TraceLog(LOG_ERROR, "SpawnBoids: Failed to allocate memory for %d boids.", numberOfBoids);
+        return NULL;
+    }
+    for (int i = 0; i < numberOfBoids; i++) {
+        boids[i] = (Boid) {
+                (Vector2) {(float) GetRandomValue((int) spawnBounds.x, (int) (spawnBounds.x + spawnBounds.width)),
+                           (float) GetRandomValue((int) spawnBounds.y, (int) (spawnBounds.y + spawnBounds.height))},
+                Vector2Scale(Vector2Normalize(
+                                     (Vector2) {(float) GetRandomValue(-100, 100), (float) GetRandomValue(-100, 100)}),
+                             startSpeed)};
+    }
+    return boids;
+}
+
 bool InitializeFlock(struct FlockState *flockState, const struct FlockConfig config) {
     enum FlockConfigValidationResult validationResult = ValidateFlockConfig(&config);
     if (validationResult != FLOCK_CONFIG_VALID) {
@@ -97,14 +97,22 @@ bool InitializeFlock(struct FlockState *flockState, const struct FlockConfig con
 
     Boid *boids =
             SpawnBoids(config.numberOfBoids, config.flockBounds, (config.minimumSpeed + config.maximumSpeed) / 2.f);
-
     if (boids == NULL) {
-        TraceLog(LOG_ERROR, "InitializeFlock: Failed to allocate boids.");
+        TraceLog(LOG_ERROR, "InitializeFlock: Failed to spawn boids.");
+        return false;
+    }
+
+    // Pre-allocate memory for calculating the steering vectors
+    Vector2 *steeringVectors = malloc(sizeof(Vector2) * config.numberOfBoids);
+    if (steeringVectors == NULL) {
+        TraceLog(LOG_ERROR, "InitializeFlock: Failed to allocate memory for the steering vectors for %d boids.",
+                 config.numberOfBoids);
         return false;
     }
 
     *flockState = (struct FlockState) {.boids = boids,
                                        .boidsCount = config.numberOfBoids,
+                                       .steeringVectors = steeringVectors,
                                        .config = config,
                                        .collisionTime = 0.f,
                                        .collisionTimeStart = (float) GetTime()};
@@ -237,29 +245,20 @@ void UpdateFlock(struct FlockState *flockState) {
         return;
     }
 
-    Vector2 *steeringVectors = malloc(sizeof(Vector2) * flockState->boidsCount);
-    if (steeringVectors == NULL) {
-        TraceLog(LOG_ERROR, "UpdateFlock: Failed to allocate memory for the steering vectors of %d boids.",
-                 flockState->boidsCount);
-        return;
-   }
-
     float totalCollisionTime = 0.f;
 
     for (int i = 0; i < flockState->boidsCount; i++) {
         float boidCollisionTime = 0.f;
-        steeringVectors[i] = CalculateSteeringVector(i, flockState, &boidCollisionTime);
+        flockState->steeringVectors[i] = CalculateSteeringVector(i, flockState, &boidCollisionTime);
         totalCollisionTime += boidCollisionTime;
     }
 
     flockState->collisionTime += totalCollisionTime;
 
     for (int i = 0; i < flockState->boidsCount; i++) {
-        flockState->boids[i].velocity = Vector2Add(flockState->boids[i].velocity, steeringVectors[i]);
+        flockState->boids[i].velocity = Vector2Add(flockState->boids[i].velocity, flockState->steeringVectors[i]);
         UpdateBoidPosition(&flockState->boids[i], flockState);
     }
-
-    free(steeringVectors);
 }
 
 void DestroyFlock(struct FlockState *flockState) {
@@ -267,9 +266,16 @@ void DestroyFlock(struct FlockState *flockState) {
         TraceLog(LOG_ERROR, "DestroyFlock: Recieved NULL pointer to flockState.");
         return;
     }
+
     if (flockState->boids != NULL) {
         free(flockState->boids);
         flockState->boids = NULL;
     }
+
     flockState->boidsCount = 0;
+
+    if (flockState->steeringVectors != NULL) {
+        free(flockState->steeringVectors);
+        flockState->steeringVectors = NULL;
+    }
 }

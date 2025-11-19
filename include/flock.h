@@ -35,6 +35,8 @@ struct FlockState {
     Boid *boids;
     int boidsCount;
 
+    Vector2 *steeringVectors;
+
     struct FlockConfig config;
 
     // Debug values
