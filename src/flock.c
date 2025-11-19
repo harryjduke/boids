@@ -166,7 +166,8 @@ static Vector2 CalculateSteeringVector(int boidIndex, const struct FlockState *f
         if (distanceToOtherBoid < flockState->config.separationRange && distanceToOtherBoid > EPSILON) {
             Vector2 separationOffset = Vector2Subtract(boid->position, otherBoid->position);
             separationVector =
-                    Vector2Add(separationVector, Vector2Scale(separationOffset, 1.f / powf(distanceToOtherBoid, 3.f)));
+                    Vector2Add(separationVector, Vector2Scale(Vector2Normalize(separationOffset),
+                                                              1.f / (distanceToOtherBoid * distanceToOtherBoid)));
         }
 
         // Alignment
