@@ -1,26 +1,29 @@
 #include "flock.h"
 
+#include "boid.h"
+
 #include <raylib.h>
 #include <raymath.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include "boid.h"
 
 struct FlockConfig CreateDefaultFlockConfig(const Rectangle flockBounds) {
-    return (struct FlockConfig) {.flockBounds = flockBounds,
-                                 .numberOfBoids = 100,
+    return (struct FlockConfig){
+        .flockBounds = flockBounds,
+        .numberOfBoids = 100,
 
-                                 .separationFactor = 1.f,
-                                 .alignmentFactor = 0.01f,
-                                 .cohesionFactor = 0.005f,
+        .separationFactor = 1.F,
+        .alignmentFactor = 0.01F,
+        .cohesionFactor = 0.005F,
 
-                                 .separationRange = 50.f,
-                                 .alignmentRange = 100.f,
-                                 .cohesionRange = 100.f,
+        .separationRange = 50.F,
+        .alignmentRange = 100.F,
+        .cohesionRange = 100.F,
 
-                                 .clampSpeed = true,
-                                 .minimumSpeed = 50.f,
-                                 .maximumSpeed = 100.f};
+        .clampSpeed = true,
+        .minimumSpeed = 50.F,
+        .maximumSpeed = 100.F,
+    };
 }
 
 enum FlockConfigValidationResult {
@@ -35,41 +38,47 @@ enum FlockConfigValidationResult {
 // Internal function that returns a human-readable error message for a flock config validation result
 static const char *FlockConfigValidationMessage(enum FlockConfigValidationResult validationResult) {
     switch (validationResult) {
-        case FLOCK_CONFIG_VALID:
-            return "configuration is valid";
-        case FLOCK_CONFIG_INVALID_NULL:
-            return "configuration is NULL";
-        case FLOCK_CONFIG_INVALID_BOID_COUNT:
-            return "number of boids must be greater than 0";
-        case FLOCK_CONFIG_INVALID_BOUNDS:
-            return "flock bounds must have a positive width and height";
-        case FLOCK_CONFIG_INVALID_SPEED_RANGE:
-            return "speed range invalid: minimum must be <= maximum and both must be greater than 0";
-        case FLOCK_CONFIG_INVALID_RANGE:
-            return "force ranges must be non-negative";
-        default:
-            return "unknown validation error";
+    case FLOCK_CONFIG_VALID:
+        return "configuration is valid";
+    case FLOCK_CONFIG_INVALID_NULL:
+        return "configuration is NULL";
+    case FLOCK_CONFIG_INVALID_BOID_COUNT:
+        return "number of boids must be greater than 0";
+    case FLOCK_CONFIG_INVALID_BOUNDS:
+        return "flock bounds must have a positive width and height";
+    case FLOCK_CONFIG_INVALID_SPEED_RANGE:
+        return "speed range invalid: minimum must be <= maximum and both must be greater than 0";
+    case FLOCK_CONFIG_INVALID_RANGE:
+        return "force ranges must be non-negative";
+    default:
+        return "unknown validation error";
     }
 }
 
 // Internal function for validating flock configs
-static enum FlockConfigValidationResult ValidateFlockConfig(const struct FlockConfig *config) {
-    if (config == NULL)
+static enum FlockConfigValidationResult validateFlockConfig(const struct FlockConfig *config) {
+    if (config == NULL) {
         return FLOCK_CONFIG_INVALID_NULL;
-    if (config->numberOfBoids <= 0)
+    }
+    if (config->numberOfBoids <= 0) {
         return FLOCK_CONFIG_INVALID_BOID_COUNT;
-    if (config->flockBounds.width <= 0.f || config->flockBounds.height <= 0.f)
+    }
+    if (config->flockBounds.width <= 0.F || config->flockBounds.height <= 0.F) {
         return FLOCK_CONFIG_INVALID_BOUNDS;
-    if (config->clampSpeed && (config->minimumSpeed > config->maximumSpeed || config->minimumSpeed < 0.f))
+    }
+    if (config->clampSpeed && (config->minimumSpeed > config->maximumSpeed || config->minimumSpeed < 0.F)) {
         return FLOCK_CONFIG_INVALID_SPEED_RANGE;
-    if (config->separationRange < 0.f || config->alignmentRange < 0.f || config->cohesionRange < 0.f)
+    }
+    if (config->separationRange < 0.F || config->alignmentRange < 0.F || config->cohesionRange < 0.F) {
         return FLOCK_CONFIG_INVALID_RANGE;
+    }
 
     // NOTE: Negative flock factors are not considered invalid.
 
     return FLOCK_CONFIG_VALID;
 }
 
+// Internal function to spawn a set number of boids at random positions in the given bounds.
 static Boid *SpawnBoids(const int numberOfBoids, const Rectangle spawnBounds, const float startSpeed) {
     Boid *boids = malloc(sizeof(Boid) * numberOfBoids);
     if (boids == NULL) {
@@ -77,18 +86,23 @@ static Boid *SpawnBoids(const int numberOfBoids, const Rectangle spawnBounds, co
         return NULL;
     }
     for (int i = 0; i < numberOfBoids; i++) {
-        boids[i] = (Boid) {
-                (Vector2) {(float) GetRandomValue((int) spawnBounds.x, (int) (spawnBounds.x + spawnBounds.width)),
-                           (float) GetRandomValue((int) spawnBounds.y, (int) (spawnBounds.y + spawnBounds.height))},
-                Vector2Scale(Vector2Normalize(
-                                     (Vector2) {(float) GetRandomValue(-100, 100), (float) GetRandomValue(-100, 100)}),
-                             startSpeed)};
+        float x = (float)GetRandomValue((int)spawnBounds.x, (int)(spawnBounds.x + spawnBounds.width));
+        float y = (float)GetRandomValue((int)spawnBounds.y, (int)(spawnBounds.y + spawnBounds.height));
+        Vector2 randomDirection = (Vector2){
+            .x = (float)GetRandomValue(-100, 100),
+            .y = (float)GetRandomValue(-100, 100),
+        };
+
+        boids[i] = (Boid){
+            .position = (Vector2){.x = x, .y = y},
+            .velocity = Vector2Scale(Vector2Normalize(randomDirection), startSpeed),
+        };
     }
     return boids;
 }
 
 bool InitializeFlock(struct FlockState *flockState, const struct FlockConfig config) {
-    enum FlockConfigValidationResult validationResult = ValidateFlockConfig(&config);
+    enum FlockConfigValidationResult validationResult = validateFlockConfig(&config);
     if (validationResult != FLOCK_CONFIG_VALID) {
         TraceLog(LOG_ERROR, "InitializeFlock: Failed due to invalid flock config, %s.",
                  FlockConfigValidationMessage(validationResult));
@@ -96,7 +110,7 @@ bool InitializeFlock(struct FlockState *flockState, const struct FlockConfig con
     }
 
     Boid *boids =
-            SpawnBoids(config.numberOfBoids, config.flockBounds, (config.minimumSpeed + config.maximumSpeed) / 2.f);
+        SpawnBoids(config.numberOfBoids, config.flockBounds, (config.minimumSpeed + config.maximumSpeed) / 2.F);
     if (boids == NULL) {
         TraceLog(LOG_ERROR, "InitializeFlock: Failed to spawn boids.");
         return false;
@@ -107,15 +121,22 @@ bool InitializeFlock(struct FlockState *flockState, const struct FlockConfig con
     if (steeringVectors == NULL) {
         TraceLog(LOG_ERROR, "InitializeFlock: Failed to allocate memory for the steering vectors for %d boids.",
                  config.numberOfBoids);
+        // Initialisation failed, clean up.
+        if (boids != NULL) {
+            free(boids);
+            boids = NULL;
+        }
         return false;
     }
 
-    *flockState = (struct FlockState) {.boids = boids,
-                                       .boidsCount = config.numberOfBoids,
-                                       .steeringVectors = steeringVectors,
-                                       .config = config,
-                                       .collisionTime = 0.f,
-                                       .collisionTimeStart = (float) GetTime()};
+    *flockState = (struct FlockState){
+        .boids = boids,
+        .boidsCount = config.numberOfBoids,
+        .steeringVectors = steeringVectors,
+        .config = config,
+        .collisionTime = 0.F,
+        .collisionTimeStart = (float)GetTime(),
+    };
 
     return true;
 }
@@ -129,7 +150,7 @@ void ModifyFlockConfig(struct FlockState *flockState, struct FlockConfig newConf
     // NOTE: We don't check if the config has actually changed here because although this function will likely be called
     // every frame when a GUI is used, comparing the configs for an early exit will (probably?) not be much faster
 
-    enum FlockConfigValidationResult validationResult = ValidateFlockConfig(&newConfig);
+    enum FlockConfigValidationResult validationResult = validateFlockConfig(&newConfig);
     if (validationResult != FLOCK_CONFIG_VALID) {
         TraceLog(LOG_ERROR, "InitializeFlock: Failed due to invalid flock config, %s.",
                  FlockConfigValidationMessage(validationResult));
@@ -150,11 +171,12 @@ static Vector2 CalculateSteeringVector(int boidIndex, const struct FlockState *f
     Vector2 cohesionVector = Vector2Zero();
     int boidsInCohesionRange = 0;
 
-    float collisionTime = 0.f;
+    float collisionTime = 0.F;
 
     for (int i = 0; i < flockState->boidsCount; i++) {
-        if (boidIndex == i)
+        if (boidIndex == i) {
             continue;
+        }
 
         const Boid *otherBoid = &flockState->boids[i];
 
@@ -166,8 +188,8 @@ static Vector2 CalculateSteeringVector(int boidIndex, const struct FlockState *f
         if (distanceToOtherBoid < flockState->config.separationRange && distanceToOtherBoid > EPSILON) {
             Vector2 separationOffset = Vector2Subtract(boid->position, otherBoid->position);
             separationVector =
-                    Vector2Add(separationVector, Vector2Scale(Vector2Normalize(separationOffset),
-                                                              1.f / (distanceToOtherBoid * distanceToOtherBoid)));
+                Vector2Add(separationVector, Vector2Scale(Vector2Normalize(separationOffset),
+                                                          1.F / (distanceToOtherBoid * distanceToOtherBoid)));
         }
 
         // Alignment
@@ -185,7 +207,7 @@ static Vector2 CalculateSteeringVector(int boidIndex, const struct FlockState *f
         }
 
         // Debug values
-        if (distanceToOtherBoid < 5.f) {
+        if (distanceToOtherBoid < 5.F) {
             collisionTime += GetFrameTime();
         }
     }
@@ -197,14 +219,14 @@ static Vector2 CalculateSteeringVector(int boidIndex, const struct FlockState *f
 
     // Alignment
     if (boidsInAlignmentRange > 0) {
-        alignmentVector = Vector2Scale(alignmentVector, 1.f / (float) boidsInAlignmentRange);
+        alignmentVector = Vector2Scale(alignmentVector, 1.F / (float)boidsInAlignmentRange);
         alignmentVector = Vector2Subtract(alignmentVector, boid->velocity);
         steeringVector = Vector2Add(steeringVector, Vector2Scale(alignmentVector, flockState->config.alignmentFactor));
     }
 
     // Cohesion
     if (boidsInCohesionRange > 0) {
-        cohesionVector = Vector2Scale(cohesionVector, 1.f / (float) boidsInCohesionRange);
+        cohesionVector = Vector2Scale(cohesionVector, 1.F / (float)boidsInCohesionRange);
         cohesionVector = Vector2Subtract(cohesionVector, boid->position);
         steeringVector = Vector2Add(steeringVector, Vector2Scale(cohesionVector, flockState->config.cohesionFactor));
     }
@@ -219,9 +241,9 @@ static void UpdateBoidPosition(Boid *boid, const struct FlockState *flockState) 
     if (flockState->config.clampSpeed) {
         float speed = Vector2Length(boid->velocity);
         if (speed > flockState->config.maximumSpeed) {
-            boid->velocity = Vector2Scale(boid->velocity, (1.f / speed) * flockState->config.maximumSpeed);
+            boid->velocity = Vector2Scale(boid->velocity, (1.F / speed) * flockState->config.maximumSpeed);
         } else if (speed < flockState->config.minimumSpeed) {
-            boid->velocity = Vector2Scale(boid->velocity, (1.f / speed) * flockState->config.minimumSpeed);
+            boid->velocity = Vector2Scale(boid->velocity, (1.F / speed) * flockState->config.minimumSpeed);
         }
     }
 
@@ -230,14 +252,18 @@ static void UpdateBoidPosition(Boid *boid, const struct FlockState *flockState) 
     boid->position.y += boid->velocity.y * GetFrameTime();
 
     // Loop around screen edges
-    if (boid->position.x < flockState->config.flockBounds.x)
+    if (boid->position.x < flockState->config.flockBounds.x) {
         boid->position.x = flockState->config.flockBounds.x + flockState->config.flockBounds.width;
-    if (boid->position.x > flockState->config.flockBounds.x + flockState->config.flockBounds.width)
+    }
+    if (boid->position.x > flockState->config.flockBounds.x + flockState->config.flockBounds.width) {
         boid->position.x = flockState->config.flockBounds.x;
-    if (boid->position.y < flockState->config.flockBounds.y)
+    }
+    if (boid->position.y < flockState->config.flockBounds.y) {
         boid->position.y = flockState->config.flockBounds.y + flockState->config.flockBounds.height;
-    if (boid->position.y > flockState->config.flockBounds.y + flockState->config.flockBounds.height)
+    }
+    if (boid->position.y > flockState->config.flockBounds.y + flockState->config.flockBounds.height) {
         boid->position.y = flockState->config.flockBounds.y;
+    }
 }
 
 void UpdateFlock(struct FlockState *flockState) {
@@ -246,10 +272,10 @@ void UpdateFlock(struct FlockState *flockState) {
         return;
     }
 
-    float totalCollisionTime = 0.f;
+    float totalCollisionTime = 0.F;
 
     for (int i = 0; i < flockState->boidsCount; i++) {
-        float boidCollisionTime = 0.f;
+        float boidCollisionTime = 0.F;
         flockState->steeringVectors[i] = CalculateSteeringVector(i, flockState, &boidCollisionTime);
         totalCollisionTime += boidCollisionTime;
     }
