@@ -9,19 +9,21 @@ int main(int argc, char *argv[]) {
     const int screenWidth = 1600;
     const int screenHeight = 900;
 
+    const Rectangle flockBounds = {
+        .x = 0.F,
+        .y = 0.F,
+        .width = (float)screenWidth,
+        .height = (float)screenHeight,
+    };
     struct FlockState flockState;
-    if (!InitializeFlock(&flockState, CreateDefaultFlockConfig((Rectangle){
-                                          .x = 0.F,
-                                          .y = 0.F,
-                                          .width = (float)screenWidth,
-                                          .height = (float)screenHeight,
-                                      }))) {
+    if (!InitializeFlock(&flockState, CreateDefaultFlockConfig(flockBounds))) {
         TraceLog(LOG_FATAL, "Failed to initialise flock. Exiting.");
         CloseWindow();
         return EXIT_FAILURE;
     }
-    struct ParametersPanelState parametersPanelState;
-    InitializeParametersPanel(&parametersPanelState, CreateDefaultGuiConfig((float)screenHeight));
+
+    struct GuiState guiState;
+    InitializeGui(&guiState, CreateDefaultGuiConfig((float)screenHeight));
 
     InitWindow(screenWidth, screenHeight, "Boids");
     SetTargetFPS(60);
@@ -36,7 +38,7 @@ int main(int argc, char *argv[]) {
         ClearBackground(DARKGRAY);
 
         // Debug - draw ranges on the first boid
-        DrawBoidRanges(&parametersPanelState, &flockState, &flockState.boids[0]);
+        DrawBoidRanges(&guiState, &flockState, &flockState.boids[0]);
 
         // Draw boids
         for (int i = 0; i < flockState.boidsCount; i++) {
@@ -44,8 +46,7 @@ int main(int argc, char *argv[]) {
         }
 
         // Draw GUI
-        const struct ParametersPanelResult parametersPanelResult =
-            DrawParametersPanel(&parametersPanelState, &flockState);
+        const struct ParametersPanelResult parametersPanelResult = DrawParametersPanel(&guiState, &flockState);
         if (parametersPanelResult.resetBoids) {
             DestroyFlock(&flockState);
             if (!InitializeFlock(&flockState, parametersPanelResult.newFlockConfig)) {

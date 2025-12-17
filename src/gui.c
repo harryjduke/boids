@@ -3,6 +3,7 @@
 #include "boid.h"
 #include "flock.h"
 
+#include <math.h>
 #include <raylib.h>
 #define RAYGUI_IMPLEMENTATION
 #include <raygui.h>
@@ -22,31 +23,30 @@ struct GuiConfig CreateDefaultGuiConfig(float screenHeight) {
     };
 }
 
-void InitializeParametersPanel(struct ParametersPanelState *parametersPanelState, const struct GuiConfig config) {
+void InitializeGui(struct GuiState *guiState, const struct GuiConfig config) {
     // NOTE: We can skip config validation because an invalid config will only result in a visually broken GUI and not
     // cause any errors or crashes, this may change in the future.
-    *parametersPanelState = (struct ParametersPanelState){
-        .separationFactorSpinnerEditMode = false,
-        .alignmentFactorSpinnerEditMode = false,
-        .cohesionFactorSpinnerEditMode = false,
 
-        .separationRangeSpinnerEditMode = false,
-        .alignmentRangeSpinnerEditMode = false,
-        .cohesionRangeSpinnerEditMode = false,
-
-        .minimumSpeedSpinnerEditMode = false,
-        .maximumSpeedSpinnerEditMode = false,
-
+    *guiState = (struct GuiState){
         .showRanges = false,
         .showFPS = false,
 
         .config = config,
+
+        .parametersPanelState =
+            (struct PanelState){
+                .currentId = 0,
+                .activeId = 0,
+
+                .heightOffset = 0,
+
+                .config = &guiState->config,
+            },
     };
 }
 
-void DrawBoidRanges(const struct ParametersPanelState *parametersPanelState, const struct FlockState *flockState,
-                    const Boid *boid) {
-    if (parametersPanelState == NULL) {
+void DrawBoidRanges(const struct GuiState *guiState, const struct FlockState *flockState, const Boid *boid) {
+    if (guiState == NULL) {
         TraceLog(LOG_ERROR, "DrawBoidRanges: Recieved NULL pointer to parametersPanelState.");
         return;
     }
@@ -59,7 +59,7 @@ void DrawBoidRanges(const struct ParametersPanelState *parametersPanelState, con
         return;
     }
 
-    if (!parametersPanelState->showRanges) {
+    if (!guiState->showRanges) {
         return;
     }
     DrawCircleV(boid->position, flockState->config.separationRange, Fade(GRAY, 0.5F));
@@ -67,11 +67,112 @@ void DrawBoidRanges(const struct ParametersPanelState *parametersPanelState, con
     DrawCircleV(boid->position, flockState->config.cohesionRange, Fade(GRAY, 0.5F));
 }
 
-struct ParametersPanelResult DrawParametersPanel(struct ParametersPanelState *parametersPanelState,
-                                                 const struct FlockState *flockState) {
+static void PanelHeader(const char *text, struct PanelState *state) {
+    const struct GuiConfig *config = state->config;
+    Rectangle bounds = {
+        .x = config->padding,
+        .y = state->heightOffset,
+        .width = config->panelWidth - (config->padding * 2.F),
+        .height = config->headingHeight,
+    };
+
+    GuiDrawText(text, bounds, TEXT_ALIGN_LEFT, DARKGRAY);
+    state->heightOffset += bounds.height + config->padding;
+}
+
+static void PanelParameterFloat(const char *label, float *value, float scale, int minValue, int maxValue,
+                                struct PanelState *state) {
+    const struct GuiConfig *config = state->config;
+    int intValue = (int)roundf(*value * scale);
+    int previousIntValue = intValue;
+    int id = ++state->currentId;
+
+    Rectangle bounds = {
+        .x = config->padding,
+        .y = state->heightOffset,
+        .width = config->spinnerWidth,
+        .height = config->spinnerHeight,
+    };
+
+    if (GuiSpinner(bounds, label, &intValue, minValue, maxValue, id == state->activeId)) {
+        state->activeId = id;
+    }
+
+    if (intValue != previousIntValue) {
+        *value = (float)intValue / scale;
+    }
+
+    state->heightOffset += bounds.height + config->padding;
+}
+
+static void PanelParameterInt(const char *label, int *value, int minValue, int maxValue, struct PanelState *state) {
+    const struct GuiConfig *config = state->config;
+    int id = ++state->currentId;
+
+    Rectangle bounds = {
+        .x = config->padding,
+        .y = state->heightOffset,
+        .width = config->spinnerWidth,
+        .height = config->spinnerHeight,
+    };
+
+    if (GuiSpinner(bounds, label, value, minValue, maxValue, id == state->activeId)) {
+        state->activeId = id;
+    }
+
+    state->heightOffset += bounds.height + config->padding;
+}
+
+static void PanelParameterBool(const char *label, bool *value, struct PanelState *state) {
+    const struct GuiConfig *config = state->config;
+    Rectangle bounds = {
+        .x = config->padding,
+        .y = state->heightOffset,
+        .width = config->checkboxHeight,
+        .height = config->checkboxHeight,
+    };
+
+    GuiCheckBox(bounds, label, value);
+
+    state->heightOffset += bounds.height + config->padding;
+}
+
+static bool PanelButton(const char *label, struct PanelState *state) {
+    const struct GuiConfig *config = state->config;
+    Rectangle bounds = {
+        .x = config->padding,
+        .y = state->heightOffset,
+        .width = config->panelWidth - (config->padding * 2.F),
+        .height = config->buttonHeight,
+    };
+
+    bool result = GuiButton(bounds, label);
+
+    state->heightOffset += bounds.height + config->padding;
+
+    return result;
+}
+
+static void PanelValueFloat(const char *label, const float *value, struct PanelState *state) {
+    const struct GuiConfig *config = state->config;
+    const char *text = TextFormat("%s: %f", label, *value);
+    Rectangle bounds = {
+        .x = config->padding,
+        .y = state->heightOffset,
+        .width = config->panelWidth - (config->padding * 2.F),
+        .height = config->headingHeight,
+    };
+
+    GuiDrawText(text, bounds, TEXT_ALIGN_LEFT, DARKGRAY);
+
+    state->heightOffset += bounds.height + config->padding;
+}
+
+struct ParametersPanelResult DrawParametersPanel(struct GuiState *guiState, const struct FlockState *flockState) {
+    struct PanelState *panelState = &guiState->parametersPanelState;
     struct ParametersPanelResult result = {.resetBoids = false, .newFlockConfig = flockState->config};
 
-    if (parametersPanelState == NULL) {
+    if (guiState == NULL) {
         TraceLog(LOG_ERROR, "DrawParametersPanel: Recieved NULL pointer to parametersPanelState.");
         return result;
     }
@@ -81,137 +182,40 @@ struct ParametersPanelResult DrawParametersPanel(struct ParametersPanelState *pa
     }
 
     GuiSetStyle(SPINNER, TEXT_ALIGNMENT, TEXT_ALIGN_RIGHT);
-    GuiSetStyle(SPINNER, TEXT_PADDING, (int)parametersPanelState->config.padding);
+    GuiSetStyle(SPINNER, TEXT_PADDING, (int)guiState->config.padding);
 
-    GuiPanel((Rectangle){0.F, 0.F, parametersPanelState->config.panelWidth, parametersPanelState->config.panelHeight},
-             "Boid Parameters");
-    float heightOffset = 25.F + parametersPanelState->config.padding;
+    // Draw the panel
+    GuiPanel((Rectangle){0.F, 0.F, guiState->config.panelWidth, guiState->config.panelHeight}, "Boid Parameters");
 
-    GuiDrawText("Force Factors",
-                (Rectangle){parametersPanelState->config.padding, heightOffset,
-                            parametersPanelState->config.panelWidth - (parametersPanelState->config.padding * 2.F),
-                            parametersPanelState->config.headingHeight},
-                TEXT_ALIGN_LEFT, DARKGRAY);
-    heightOffset += parametersPanelState->config.headingHeight + parametersPanelState->config.padding;
+    // Reset the ID counter (it will be incremented as we draw each element)
+    guiState->parametersPanelState.currentId = 0;
 
-    int separationFactorValue = (int)(result.newFlockConfig.separationFactor * 100.F);
-    if (GuiSpinner((Rectangle){parametersPanelState->config.padding, heightOffset,
-                               parametersPanelState->config.spinnerWidth, parametersPanelState->config.spinnerHeight},
-                   "Separation", &separationFactorValue, 0, 10000,
-                   parametersPanelState->separationFactorSpinnerEditMode)) {
-        parametersPanelState->separationFactorSpinnerEditMode = !parametersPanelState->separationFactorSpinnerEditMode;
-    }
-    result.newFlockConfig.separationFactor = (float)separationFactorValue / 100.F;
-    heightOffset += parametersPanelState->config.spinnerHeight + parametersPanelState->config.padding;
+    // Set the initial height offset
+    guiState->parametersPanelState.heightOffset = 25.F + guiState->config.padding;
 
-    int alignmentFactorValue = (int)(result.newFlockConfig.alignmentFactor * 10000.F);
-    if (GuiSpinner((Rectangle){parametersPanelState->config.padding, heightOffset,
-                               parametersPanelState->config.spinnerWidth, parametersPanelState->config.spinnerHeight},
-                   "Alignment", &alignmentFactorValue, 0, 10000,
-                   parametersPanelState->alignmentFactorSpinnerEditMode)) {
-        parametersPanelState->alignmentFactorSpinnerEditMode = !parametersPanelState->alignmentFactorSpinnerEditMode;
-    }
-    result.newFlockConfig.alignmentFactor = (float)alignmentFactorValue / 10000.F;
-    heightOffset += parametersPanelState->config.spinnerHeight + parametersPanelState->config.padding;
+    PanelHeader("Force Factors", panelState);
+    PanelParameterFloat("Separation", &result.newFlockConfig.separationFactor, 100.F, 0, 10000, panelState);
+    PanelParameterFloat("Alignment", &result.newFlockConfig.alignmentFactor, 10000.F, 0, 10000, panelState);
+    PanelParameterFloat("Cohesion", &result.newFlockConfig.cohesionFactor, 10000.F, 0, 10000, panelState);
 
-    int cohesionFactorValue = (int)(result.newFlockConfig.cohesionFactor * 10000.F);
-    if (GuiSpinner((Rectangle){parametersPanelState->config.padding, heightOffset,
-                               parametersPanelState->config.spinnerWidth, parametersPanelState->config.spinnerHeight},
-                   "Cohesion", &cohesionFactorValue, 0, 10000, parametersPanelState->cohesionFactorSpinnerEditMode)) {
-        parametersPanelState->cohesionFactorSpinnerEditMode = !parametersPanelState->cohesionFactorSpinnerEditMode;
-    }
-    result.newFlockConfig.cohesionFactor = (float)cohesionFactorValue / 10000.F;
-    heightOffset += parametersPanelState->config.spinnerHeight + parametersPanelState->config.padding;
+    PanelHeader("Force Ranges", panelState);
+    PanelParameterFloat("Separation", &result.newFlockConfig.separationRange, 1.F, 0, 1000, panelState);
+    PanelParameterFloat("Alignment", &result.newFlockConfig.alignmentRange, 1.F, 0, 1000, panelState);
+    PanelParameterFloat("Cohesion", &result.newFlockConfig.cohesionRange, 1.F, 0, 1000, panelState);
 
-    GuiDrawText("Force Ranges",
-                (Rectangle){parametersPanelState->config.padding, heightOffset,
-                            parametersPanelState->config.panelWidth - (parametersPanelState->config.padding * 2.F),
-                            parametersPanelState->config.headingHeight},
-                TEXT_ALIGN_LEFT, DARKGRAY);
-    heightOffset += parametersPanelState->config.headingHeight + parametersPanelState->config.padding;
+    PanelParameterBool("Show Ranges", &guiState->showRanges, panelState);
 
-    int separationRangeValue = (int)result.newFlockConfig.separationRange;
-    if (GuiSpinner((Rectangle){parametersPanelState->config.padding, heightOffset,
-                               parametersPanelState->config.spinnerWidth, parametersPanelState->config.spinnerHeight},
-                   "Separation", &separationRangeValue, 0, 1000,
-                   parametersPanelState->separationRangeSpinnerEditMode)) {
-        parametersPanelState->separationRangeSpinnerEditMode = !parametersPanelState->separationRangeSpinnerEditMode;
-    }
-    result.newFlockConfig.separationRange = (float)separationRangeValue;
-    heightOffset += parametersPanelState->config.spinnerHeight + parametersPanelState->config.padding;
-
-    int alignmentRangeValue = (int)result.newFlockConfig.alignmentRange;
-    if (GuiSpinner((Rectangle){parametersPanelState->config.padding, heightOffset,
-                               parametersPanelState->config.spinnerWidth, parametersPanelState->config.spinnerHeight},
-                   "Alignment", &alignmentRangeValue, 0, 1000, parametersPanelState->alignmentRangeSpinnerEditMode)) {
-        parametersPanelState->alignmentRangeSpinnerEditMode = !parametersPanelState->alignmentRangeSpinnerEditMode;
-    }
-    result.newFlockConfig.alignmentRange = (float)alignmentRangeValue;
-    heightOffset += parametersPanelState->config.spinnerHeight + parametersPanelState->config.padding;
-
-    int cohesionRangeValue = (int)result.newFlockConfig.cohesionRange;
-    if (GuiSpinner((Rectangle){parametersPanelState->config.padding, heightOffset,
-                               parametersPanelState->config.spinnerWidth, parametersPanelState->config.spinnerHeight},
-                   "Cohesion", &cohesionRangeValue, 0, 1000, parametersPanelState->cohesionRangeSpinnerEditMode)) {
-        parametersPanelState->cohesionRangeSpinnerEditMode = !parametersPanelState->cohesionRangeSpinnerEditMode;
-    }
-    result.newFlockConfig.cohesionRange = (float)cohesionRangeValue;
-    heightOffset += parametersPanelState->config.spinnerHeight + parametersPanelState->config.padding;
-
-    GuiCheckBox((Rectangle){parametersPanelState->config.padding, heightOffset,
-                            parametersPanelState->config.checkboxHeight, parametersPanelState->config.checkboxHeight},
-                "Show Ranges", &parametersPanelState->showRanges);
-    heightOffset += parametersPanelState->config.checkboxHeight + parametersPanelState->config.padding;
-
-    GuiDrawText("Speed",
-                (Rectangle){parametersPanelState->config.padding, heightOffset,
-                            parametersPanelState->config.panelWidth - (parametersPanelState->config.padding * 2.F),
-                            parametersPanelState->config.headingHeight},
-                TEXT_ALIGN_LEFT, DARKGRAY);
-    heightOffset += parametersPanelState->config.headingHeight + parametersPanelState->config.padding;
-
-    GuiCheckBox((Rectangle){parametersPanelState->config.padding, heightOffset,
-                            parametersPanelState->config.checkboxHeight, parametersPanelState->config.checkboxHeight},
-                "Clamp Speed", &result.newFlockConfig.clampSpeed);
-    heightOffset += parametersPanelState->config.checkboxHeight + parametersPanelState->config.padding;
-
+    PanelHeader("Speed", panelState);
+    PanelParameterBool("Clamp Speed", &result.newFlockConfig.clampSpeed, panelState);
     if (!result.newFlockConfig.clampSpeed) {
         GuiDisable();
     }
-
-    int minimumSpeedValue = (int)result.newFlockConfig.minimumSpeed;
-    if (GuiSpinner((Rectangle){parametersPanelState->config.padding, heightOffset,
-                               parametersPanelState->config.spinnerWidth, parametersPanelState->config.spinnerHeight},
-                   "Minimum Speed", &minimumSpeedValue, 0, 1000, parametersPanelState->minimumSpeedSpinnerEditMode)) {
-        parametersPanelState->minimumSpeedSpinnerEditMode = !parametersPanelState->minimumSpeedSpinnerEditMode;
-    }
-    result.newFlockConfig.minimumSpeed = (float)minimumSpeedValue;
-    heightOffset += parametersPanelState->config.spinnerHeight + parametersPanelState->config.padding;
-
-    int maximumSpeedValue = (int)result.newFlockConfig.maximumSpeed;
-    if (GuiSpinner((Rectangle){parametersPanelState->config.padding, heightOffset,
-                               parametersPanelState->config.spinnerWidth, parametersPanelState->config.spinnerHeight},
-                   "Maximum Speed", &maximumSpeedValue, 0, 1000, parametersPanelState->maximumSpeedSpinnerEditMode)) {
-        parametersPanelState->maximumSpeedSpinnerEditMode = !parametersPanelState->maximumSpeedSpinnerEditMode;
-    }
-    result.newFlockConfig.maximumSpeed = (float)maximumSpeedValue;
-    heightOffset += parametersPanelState->config.spinnerHeight + parametersPanelState->config.padding;
-
+    PanelParameterFloat("Minimum Speed", &result.newFlockConfig.minimumSpeed, 1.F, 0, 1000, panelState);
+    PanelParameterFloat("Maximum Speed", &result.newFlockConfig.maximumSpeed, 1.F, 0, 1000, panelState);
     GuiEnable();
 
-    GuiDrawText("Boids",
-                (Rectangle){parametersPanelState->config.padding, heightOffset,
-                            parametersPanelState->config.panelWidth - (parametersPanelState->config.padding * 2.F),
-                            parametersPanelState->config.headingHeight},
-                TEXT_ALIGN_LEFT, DARKGRAY);
-    heightOffset += parametersPanelState->config.headingHeight + parametersPanelState->config.padding;
-
-    if (GuiSpinner((Rectangle){parametersPanelState->config.padding, heightOffset,
-                               parametersPanelState->config.spinnerWidth, parametersPanelState->config.spinnerHeight},
-                   "Number of Boids", &result.newFlockConfig.numberOfBoids, 1, 10000,
-                   parametersPanelState->numberOfBoidsSpinnerEditMode)) {
-        parametersPanelState->numberOfBoidsSpinnerEditMode = !parametersPanelState->numberOfBoidsSpinnerEditMode;
-    }
+    PanelHeader("Boids", panelState);
+    PanelParameterInt("Number of Boids", &result.newFlockConfig.numberOfBoids, 1, 10000, panelState);
     // Although the minimum is 1, deleting all the digits in the spinner still returns 0
     if (result.newFlockConfig.numberOfBoids <= 0) {
         result.newFlockConfig.numberOfBoids = 1;
@@ -221,31 +225,19 @@ struct ParametersPanelResult DrawParametersPanel(struct ParametersPanelState *pa
     if (flockState->config.numberOfBoids != result.newFlockConfig.numberOfBoids) {
         result.resetBoids = true;
     }
-    heightOffset += parametersPanelState->config.spinnerHeight + parametersPanelState->config.padding;
 
-    if (GuiButton((Rectangle){parametersPanelState->config.padding, heightOffset,
-                              parametersPanelState->config.panelWidth - (parametersPanelState->config.padding * 2.F),
-                              parametersPanelState->config.buttonHeight},
-                  "Reset Boids")) {
+    if (PanelButton("Reset Boids", panelState)) {
         result.resetBoids = true;
     }
-    heightOffset += parametersPanelState->config.buttonHeight + parametersPanelState->config.padding;
 
-    GuiCheckBox((Rectangle){parametersPanelState->config.padding, heightOffset,
-                            parametersPanelState->config.checkboxHeight, parametersPanelState->config.checkboxHeight},
-                "Show FPS", &parametersPanelState->showFPS);
-    heightOffset += parametersPanelState->config.checkboxHeight + parametersPanelState->config.padding;
+    PanelParameterBool("Show FPS", &guiState->showFPS, panelState);
 
-    GuiDrawText(
-        TextFormat("Collision Rate: %f", flockState->collisionTime / (GetTime() - flockState->collisionTimeStart)),
-        (Rectangle){parametersPanelState->config.padding, heightOffset,
-                    parametersPanelState->config.panelWidth - (parametersPanelState->config.padding * 2.F),
-                    parametersPanelState->config.headingHeight},
-        TEXT_ALIGN_LEFT, DARKGRAY);
+    float collisionRate = (float)(flockState->collisionTime / (GetTime() - flockState->collisionTimeStart));
+    PanelValueFloat("Collision Rate", &collisionRate, panelState);
 
-    if (parametersPanelState->showFPS) {
-        DrawText(TextFormat("FPS: %d", GetFPS()), GetScreenWidth() - 40 - (int)parametersPanelState->config.padding,
-                 (int)parametersPanelState->config.padding, 10, MAROON);
+    if (guiState->showFPS) {
+        DrawText(TextFormat("FPS: %d", GetFPS()), GetScreenWidth() - 40 - (int)guiState->config.padding,
+                 (int)guiState->config.padding, 10, MAROON);
     }
 
     return result;

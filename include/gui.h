@@ -6,7 +6,7 @@
 #include "boid.h"
 #include "flock.h"
 
-// GUI config
+// Used to keep a consistent style for the whole GUI
 struct GuiConfig {
     float padding;
     float panelWidth;
@@ -18,25 +18,22 @@ struct GuiConfig {
     float buttonHeight;
 };
 
-// GUI state
-struct ParametersPanelState {
-    // Edit mode flags for spinners
-    bool separationFactorSpinnerEditMode;
-    bool alignmentFactorSpinnerEditMode;
-    bool cohesionFactorSpinnerEditMode;
+// TODO: Move definition to c file and only forward declare here
+struct PanelState {
+    int currentId;
+    int activeId;
 
-    bool separationRangeSpinnerEditMode;
-    bool alignmentRangeSpinnerEditMode;
-    bool cohesionRangeSpinnerEditMode;
+    float heightOffset;
 
-    bool minimumSpeedSpinnerEditMode;
-    bool maximumSpeedSpinnerEditMode;
+    struct GuiConfig *config;
+};
 
-    bool numberOfBoidsSpinnerEditMode;
-
+struct GuiState {
     // GUI element toggles
     bool showRanges;
     bool showFPS;
+
+    struct PanelState parametersPanelState;
 
     // Current config for GUI
     struct GuiConfig config;
@@ -44,17 +41,15 @@ struct ParametersPanelState {
 
 struct GuiConfig CreateDefaultGuiConfig(float screenHeight);
 
-void InitializeParametersPanel(struct ParametersPanelState *parametersPanelState, struct GuiConfig config);
+void InitializeGui(struct GuiState *guiState, struct GuiConfig config);
 
 struct ParametersPanelResult {
     bool resetBoids;
     struct FlockConfig newFlockConfig;
 };
 
-void DrawBoidRanges(const struct ParametersPanelState *parametersPanelState, const struct FlockState *flockState,
-                    const Boid *boid);
+void DrawBoidRanges(const struct GuiState *guiState, const struct FlockState *flockState, const Boid *boid);
 
-struct ParametersPanelResult DrawParametersPanel(struct ParametersPanelState *parametersPanelState,
-                                                 const struct FlockState *flockState);
+struct ParametersPanelResult DrawParametersPanel(struct GuiState *guiState, const struct FlockState *flockState);
 
 #endif // !GUI_H
