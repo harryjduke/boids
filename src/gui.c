@@ -5,6 +5,7 @@
 
 #include <math.h>
 #include <raylib.h>
+#include <raymath.h>
 #define RAYGUI_IMPLEMENTATION
 #include <raygui.h>
 #include <stdbool.h>
@@ -30,6 +31,7 @@ void InitializeGui(struct GuiState *guiState, const struct GuiConfig config) {
     *guiState = (struct GuiState){
         .showRanges = false,
         .showFPS = false,
+        .inspectedBoidIndex = 0,
 
         .config = config,
 
@@ -168,6 +170,31 @@ static void PanelValueFloat(const char *label, const float *value, struct PanelS
     state->heightOffset += bounds.height + config->padding;
 }
 
+static void PanelValueVector2(const char *label, const Vector2 *value, bool displayMagnitude,
+                              struct PanelState *state) {
+    const struct GuiConfig *config = state->config;
+    const char *text;
+    int lines;
+    if (displayMagnitude) {
+        float magnitude = Vector2Length(*value);
+        text = TextFormat("%s:\n  x: % 9.4f\n  y: % 9.4f\n  magnitude: % 9.4f", label, value->x, value->y, magnitude);
+        lines = 4;
+    } else {
+        text = TextFormat("%s:\n  x: % 9.4f\n  y: % 9.4f", label, value->x, value->y);
+        lines = 3;
+    }
+    Rectangle bounds = {
+        .x = config->padding,
+        .y = state->heightOffset,
+        .width = config->panelWidth - (config->padding * 2.F),
+        .height = config->headingHeight * (float)lines,
+    };
+
+    GuiDrawText(text, bounds, TEXT_ALIGN_LEFT, DARKGRAY);
+
+    state->heightOffset += bounds.height + config->padding;
+}
+
 struct ParametersPanelResult DrawParametersPanel(struct GuiState *guiState, const struct FlockState *flockState) {
     struct PanelState *panelState = &guiState->parametersPanelState;
     struct ParametersPanelResult result = {.resetBoids = false, .newFlockConfig = flockState->config};
@@ -194,9 +221,15 @@ struct ParametersPanelResult DrawParametersPanel(struct GuiState *guiState, cons
     guiState->parametersPanelState.heightOffset = 25.F + guiState->config.padding;
 
     PanelHeader("Force Factors", panelState);
-    PanelParameterFloat("Separation", &result.newFlockConfig.separationFactor, 100.F, 0, 10000, panelState);
-    PanelParameterFloat("Alignment", &result.newFlockConfig.alignmentFactor, 10000.F, 0, 10000, panelState);
-    PanelParameterFloat("Cohesion", &result.newFlockConfig.cohesionFactor, 10000.F, 0, 10000, panelState);
+    if (flockState->config.normalizeForces) {
+        PanelParameterFloat("Separation", &result.newFlockConfig.separationFactor, 100.F, 0, 10000, panelState);
+        PanelParameterFloat("Alignment", &result.newFlockConfig.alignmentFactor, 100.F, 0, 10000, panelState);
+        PanelParameterFloat("Cohesion", &result.newFlockConfig.cohesionFactor, 100.F, 0, 10000, panelState);
+    } else {
+        PanelParameterFloat("Separation", &result.newFlockConfig.separationFactor, 100.F, 0, 10000, panelState);
+        PanelParameterFloat("Alignment", &result.newFlockConfig.alignmentFactor, 100.F, 0, 10000, panelState);
+        PanelParameterFloat("Cohesion", &result.newFlockConfig.cohesionFactor, 100.F, 0, 10000, panelState);
+    }
 
     PanelHeader("Force Ranges", panelState);
     PanelParameterFloat("Separation", &result.newFlockConfig.separationRange, 1.F, 0, 1000, panelState);
@@ -204,6 +237,8 @@ struct ParametersPanelResult DrawParametersPanel(struct GuiState *guiState, cons
     PanelParameterFloat("Cohesion", &result.newFlockConfig.cohesionRange, 1.F, 0, 1000, panelState);
 
     PanelParameterBool("Show Ranges", &guiState->showRanges, panelState);
+
+    PanelParameterBool("Normalise Forces", &result.newFlockConfig.normalizeForces, panelState);
 
     PanelHeader("Speed", panelState);
     PanelParameterBool("Clamp Speed", &result.newFlockConfig.clampSpeed, panelState);
@@ -234,6 +269,14 @@ struct ParametersPanelResult DrawParametersPanel(struct GuiState *guiState, cons
 
     float collisionRate = (float)(flockState->collisionTime / (GetTime() - flockState->collisionTimeStart));
     PanelValueFloat("Collision Rate", &collisionRate, panelState);
+
+    PanelHeader("Inspect Boid", panelState);
+    PanelParameterInt("Boid Index", &guiState->inspectedBoidIndex, 0, flockState->config.numberOfBoids - 1, panelState);
+    PanelValueVector2("Position", &flockState->boids[guiState->inspectedBoidIndex].position, false, panelState);
+    PanelValueVector2("Velocity", &flockState->boids[guiState->inspectedBoidIndex].velocity, true, panelState);
+    PanelValueVector2("Separation Vector", &flockState->boids[guiState->inspectedBoidIndex].separationVector, true, panelState);
+    PanelValueVector2("Alignment Vector", &flockState->boids[guiState->inspectedBoidIndex].alignmentVector, true, panelState);
+    PanelValueVector2("Cohesion Vector", &flockState->boids[guiState->inspectedBoidIndex].cohesionVector, true, panelState);
 
     if (guiState->showFPS) {
         DrawText(TextFormat("FPS: %d", GetFPS()), GetScreenWidth() - 40 - (int)guiState->config.padding,

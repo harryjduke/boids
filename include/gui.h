@@ -32,6 +32,7 @@ struct GuiState {
     // GUI element toggles
     bool showRanges;
     bool showFPS;
+    int inspectedBoidIndex;
 
     struct PanelState parametersPanelState;
 

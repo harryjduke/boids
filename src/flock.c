@@ -20,6 +20,8 @@ struct FlockConfig CreateDefaultFlockConfig(const Rectangle flockBounds) {
         .alignmentRange = 100.F,
         .cohesionRange = 100.F,
 
+        .normalizeForces = false,
+
         .clampSpeed = true,
         .minimumSpeed = 50.F,
         .maximumSpeed = 100.F,
@@ -166,6 +168,7 @@ static Vector2 CalculateSteeringVector(int boidIndex, const struct FlockState *f
     const Boid *boid = &flockState->boids[boidIndex];
 
     Vector2 separationVector = Vector2Zero();
+    int boidsInSeparationRange = 0;
     Vector2 alignmentVector = Vector2Zero();
     int boidsInAlignmentRange = 0;
     Vector2 cohesionVector = Vector2Zero();
@@ -187,9 +190,13 @@ static Vector2 CalculateSteeringVector(int boidIndex, const struct FlockState *f
         // stronger the force.
         if (distanceToOtherBoid < flockState->config.separationRange && distanceToOtherBoid > EPSILON) {
             Vector2 separationOffset = Vector2Subtract(boid->position, otherBoid->position);
+            // Magnitude starts at 0 at the edge of the range and scales towards infinity
+            float magnitude = (flockState->config.separationRange / distanceToOtherBoid) - 1;
+            // Magnitude gets exponentially higher as the distance closes
+            // magnitude *= magnitude;
             separationVector =
-                Vector2Add(separationVector, Vector2Scale(Vector2Normalize(separationOffset),
-                                                          1.F / (distanceToOtherBoid * distanceToOtherBoid)));
+                Vector2Add(separationVector, Vector2Scale(Vector2Normalize(separationOffset), magnitude));
+            boidsInSeparationRange++;
         }
 
         // Alignment
@@ -212,24 +219,44 @@ static Vector2 CalculateSteeringVector(int boidIndex, const struct FlockState *f
         }
     }
 
-    Vector2 steeringVector = Vector2Zero();
+    if (boidsInSeparationRange > 0) {
+        // Convert to steering vector
+        separationVector = Vector2Subtract(separationVector, boid->velocity);
+    }
 
-    // Separation
-    steeringVector = Vector2Add(steeringVector, Vector2Scale(separationVector, flockState->config.separationFactor));
-
-    // Alignment
     if (boidsInAlignmentRange > 0) {
+        // Calculate average alignment
         alignmentVector = Vector2Scale(alignmentVector, 1.F / (float)boidsInAlignmentRange);
+        // Convert to steering vector
         alignmentVector = Vector2Subtract(alignmentVector, boid->velocity);
-        steeringVector = Vector2Add(steeringVector, Vector2Scale(alignmentVector, flockState->config.alignmentFactor));
     }
 
-    // Cohesion
     if (boidsInCohesionRange > 0) {
+        // Calculate average cohesion relative to position
         cohesionVector = Vector2Scale(cohesionVector, 1.F / (float)boidsInCohesionRange);
+        // Convert to steering vector
         cohesionVector = Vector2Subtract(cohesionVector, boid->position);
-        steeringVector = Vector2Add(steeringVector, Vector2Scale(cohesionVector, flockState->config.cohesionFactor));
     }
+
+    if (flockState->config.normalizeForces) {
+        separationVector = Vector2Normalize(separationVector);
+        alignmentVector = Vector2Normalize(alignmentVector);
+        cohesionVector = Vector2Normalize(cohesionVector);
+        // separationVector = Vector2ClampValue(separationVector, 0.F, 1.F);
+        // alignmentVector = Vector2ClampValue(alignmentVector, 0.F, 1.F);
+        // cohesionVector = Vector2ClampValue(cohesionVector, 0.F, 1.F);
+    }
+
+    Vector2 steeringVector = Vector2Zero();
+    // Combine vectors
+    steeringVector = Vector2Add(steeringVector, Vector2Scale(separationVector, flockState->config.separationFactor));
+    steeringVector = Vector2Add(steeringVector, Vector2Scale(alignmentVector, flockState->config.alignmentFactor));
+    steeringVector = Vector2Add(steeringVector, Vector2Scale(cohesionVector, flockState->config.cohesionFactor));
+
+    // Set debug values
+    flockState->boids->separationVector = separationVector;
+    flockState->boids->alignmentVector = alignmentVector;
+    flockState->boids->cohesionVector = cohesionVector;
 
     *outCollisionTime = collisionTime;
     return steeringVector;

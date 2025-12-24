@@ -24,6 +24,8 @@ struct FlockConfig {
     float cohesionRange;
     float alignmentRange;
 
+    bool normalizeForces;
+
     // Speed
     bool clampSpeed;
     float minimumSpeed;

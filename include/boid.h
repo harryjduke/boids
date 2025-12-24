@@ -6,6 +6,11 @@
 typedef struct {
     Vector2 position;
     Vector2 velocity;
+
+    // Debug values
+    Vector2 separationVector;
+    Vector2 alignmentVector;
+    Vector2 cohesionVector;
 } Boid;
 
 #define BOID_LENGTH 10.f
