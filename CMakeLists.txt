@@ -16,6 +16,9 @@ project(boids C)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Custom debug option
+option(ENABLE_DEBUG_TOOLS "Enable custom debugging tools" OFF)
+
 # Setup build output directories
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
@@ -41,6 +44,11 @@ add_executable(game
 target_include_directories(game PRIVATE ${RAYGUI_INCLUDE_DIRS})
 target_include_directories(game PRIVATE include)
 target_link_libraries(game PRIVATE raylib glfw)
+
+if (ENABLE_DEBUG_TOOLS)
+    message(STATUS "Enabling custom debug tools (DEBUG defined)")
+    target_compile_definitions(game PRIVATE DEBUG)
+endif()
 
 # Manually link math libraries for linux
 if(UNIX AND NOT APPLE)

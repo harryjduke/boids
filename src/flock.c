@@ -253,10 +253,12 @@ static Vector2 CalculateSteeringVector(int boidIndex, const struct FlockState *f
     steeringVector = Vector2Add(steeringVector, Vector2Scale(alignmentVector, flockState->config.alignmentFactor));
     steeringVector = Vector2Add(steeringVector, Vector2Scale(cohesionVector, flockState->config.cohesionFactor));
 
+#ifdef DEBUG
     // Set debug values
     flockState->boids->separationVector = separationVector;
     flockState->boids->alignmentVector = alignmentVector;
     flockState->boids->cohesionVector = cohesionVector;
+#endif /* ifdef DEBUG */
 
     *outCollisionTime = collisionTime;
     return steeringVector;

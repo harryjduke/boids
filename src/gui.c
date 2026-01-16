@@ -1,6 +1,8 @@
 #include "gui.h"
 
+#ifdef DEBUG
 #include "boid.h"
+#endif /* ifdef DEBUG */
 #include "flock.h"
 
 #include <math.h>
@@ -29,12 +31,6 @@ void InitializeGui(struct GuiState *guiState, const struct GuiConfig config) {
     // cause any errors or crashes, this may change in the future.
 
     *guiState = (struct GuiState){
-        .showRanges = false,
-        .showFPS = false,
-        .inspectedBoidIndex = 0,
-
-        .config = config,
-
         .parametersPanelState =
             (struct PanelState){
                 .currentId = 0,
@@ -44,29 +40,14 @@ void InitializeGui(struct GuiState *guiState, const struct GuiConfig config) {
 
                 .config = &guiState->config,
             },
+        .config = config,
+
+        .showFPS = false,
+#ifdef DEBUG
+        .showRanges = false,
+        .inspectedBoidIndex = 0,
+#endif /* ifdef DEBUG */
     };
-}
-
-void DrawBoidRanges(const struct GuiState *guiState, const struct FlockState *flockState, const Boid *boid) {
-    if (guiState == NULL) {
-        TraceLog(LOG_ERROR, "DrawBoidRanges: Recieved NULL pointer to parametersPanelState.");
-        return;
-    }
-    if (flockState == NULL) {
-        TraceLog(LOG_ERROR, "DrawBoidRanges: Recieved NULL pointer to flockState.");
-        return;
-    }
-    if (boid == NULL) {
-        TraceLog(LOG_ERROR, "DrawBoidRanges: Recieved NULL pointer to boid.");
-        return;
-    }
-
-    if (!guiState->showRanges) {
-        return;
-    }
-    DrawCircleV(boid->position, flockState->config.separationRange, Fade(GRAY, 0.5F));
-    DrawCircleV(boid->position, flockState->config.alignmentRange, Fade(GRAY, 0.5F));
-    DrawCircleV(boid->position, flockState->config.cohesionRange, Fade(GRAY, 0.5F));
 }
 
 static void PanelHeader(const char *text, struct PanelState *state) {
@@ -221,22 +202,18 @@ struct ParametersPanelResult DrawParametersPanel(struct GuiState *guiState, cons
     guiState->parametersPanelState.heightOffset = 25.F + guiState->config.padding;
 
     PanelHeader("Force Factors", panelState);
-    if (flockState->config.normalizeForces) {
-        PanelParameterFloat("Separation", &result.newFlockConfig.separationFactor, 100.F, 0, 10000, panelState);
-        PanelParameterFloat("Alignment", &result.newFlockConfig.alignmentFactor, 100.F, 0, 10000, panelState);
-        PanelParameterFloat("Cohesion", &result.newFlockConfig.cohesionFactor, 100.F, 0, 10000, panelState);
-    } else {
-        PanelParameterFloat("Separation", &result.newFlockConfig.separationFactor, 100.F, 0, 10000, panelState);
-        PanelParameterFloat("Alignment", &result.newFlockConfig.alignmentFactor, 100.F, 0, 10000, panelState);
-        PanelParameterFloat("Cohesion", &result.newFlockConfig.cohesionFactor, 100.F, 0, 10000, panelState);
-    }
+    PanelParameterFloat("Separation", &result.newFlockConfig.separationFactor, 100.F, 0, 10000, panelState);
+    PanelParameterFloat("Alignment", &result.newFlockConfig.alignmentFactor, 100.F, 0, 10000, panelState);
+    PanelParameterFloat("Cohesion", &result.newFlockConfig.cohesionFactor, 100.F, 0, 10000, panelState);
 
     PanelHeader("Force Ranges", panelState);
     PanelParameterFloat("Separation", &result.newFlockConfig.separationRange, 1.F, 0, 1000, panelState);
     PanelParameterFloat("Alignment", &result.newFlockConfig.alignmentRange, 1.F, 0, 1000, panelState);
     PanelParameterFloat("Cohesion", &result.newFlockConfig.cohesionRange, 1.F, 0, 1000, panelState);
 
+#ifdef DEBUG
     PanelParameterBool("Show Ranges", &guiState->showRanges, panelState);
+#endif /* ifdef DEBUG */
 
     PanelParameterBool("Normalise Forces", &result.newFlockConfig.normalizeForces, panelState);
 
@@ -270,17 +247,64 @@ struct ParametersPanelResult DrawParametersPanel(struct GuiState *guiState, cons
     float collisionRate = (float)(flockState->collisionTime / (GetTime() - flockState->collisionTimeStart));
     PanelValueFloat("Collision Rate", &collisionRate, panelState);
 
+#ifdef DEBUG
     PanelHeader("Inspect Boid", panelState);
     PanelParameterInt("Boid Index", &guiState->inspectedBoidIndex, 0, flockState->config.numberOfBoids - 1, panelState);
     PanelValueVector2("Position", &flockState->boids[guiState->inspectedBoidIndex].position, false, panelState);
     PanelValueVector2("Velocity", &flockState->boids[guiState->inspectedBoidIndex].velocity, true, panelState);
-    PanelValueVector2("Separation Vector", &flockState->boids[guiState->inspectedBoidIndex].separationVector, true, panelState);
-    PanelValueVector2("Alignment Vector", &flockState->boids[guiState->inspectedBoidIndex].alignmentVector, true, panelState);
-    PanelValueVector2("Cohesion Vector", &flockState->boids[guiState->inspectedBoidIndex].cohesionVector, true, panelState);
+    PanelValueVector2("Separation Vector", &flockState->boids[guiState->inspectedBoidIndex].separationVector, true,
+                      panelState);
+    PanelValueVector2("Alignment Vector", &flockState->boids[guiState->inspectedBoidIndex].alignmentVector, true,
+                      panelState);
+    PanelValueVector2("Cohesion Vector", &flockState->boids[guiState->inspectedBoidIndex].cohesionVector, true,
+                      panelState);
+#endif /* ifdef DEBUG */
 
-    if (guiState->showFPS) {
-        DrawText(TextFormat("FPS: %d", GetFPS()), GetScreenWidth() - 40 - (int)guiState->config.padding,
-                 (int)guiState->config.padding, 10, MAROON);
+    return result;
+}
+
+#ifdef DEBUG
+static void DrawBoidRanges(const struct GuiState *guiState, const struct FlockState *flockState, const int boidIndex) {
+    if (guiState == NULL) {
+        TraceLog(LOG_ERROR, "DrawBoidRanges: Recieved NULL pointer to parametersPanelState.");
+        return;
+    }
+    if (flockState == NULL) {
+        TraceLog(LOG_ERROR, "DrawBoidRanges: Recieved NULL pointer to flockState.");
+        return;
+    }
+    Boid *boid = &flockState->boids[boidIndex];
+    if (boid == NULL) {
+        TraceLog(LOG_ERROR, "DrawBoidRanges: Recieved index of invalid boid.");
+        return;
+    }
+
+    if (!guiState->showRanges) {
+        return;
+    }
+    DrawCircleV(boid->position, flockState->config.separationRange, Fade(GRAY, 0.2F));
+    DrawCircleV(boid->position, flockState->config.alignmentRange, Fade(GRAY, 0.2F));
+    DrawCircleV(boid->position, flockState->config.cohesionRange, Fade(GRAY, 0.2F));
+}
+
+void DrawGuiBoidOverlay(const struct GuiState *guiState, const struct FlockState *flockState, const int boidIndex) {
+    DrawBoidRanges(guiState, flockState, boidIndex);
+}
+#endif /* ifdef DEBUG */
+
+struct GuiResult DrawGui(struct GuiState *state, const struct FlockState *flockState) {
+    struct GuiResult result;
+    result = (struct GuiResult){
+        .parametersPanelResult = DrawParametersPanel(state, flockState),
+    };
+
+    #ifdef DEBUG
+    DrawGuiBoidOverlay(state, flockState, state->inspectedBoidIndex);
+    #endif /* ifdef DEBUG */
+
+    if (state->showFPS) {
+        DrawText(TextFormat("FPS: %d", GetFPS()), GetScreenWidth() - 40 - (int)state->config.padding,
+                 (int)state->config.padding, 10, MAROON);
     }
 
     return result;

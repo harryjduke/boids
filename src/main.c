@@ -37,23 +37,20 @@ int main(int argc, char *argv[]) {
 
         ClearBackground(DARKGRAY);
 
-        // Debug - draw ranges on the first boid
-        DrawBoidRanges(&guiState, &flockState, &flockState.boids[0]);
-
         // Draw boids
         for (int i = 0; i < flockState.boidsCount; i++) {
             DrawBoid(flockState.boids[i]);
         }
 
         // Draw GUI
-        const struct ParametersPanelResult parametersPanelResult = DrawParametersPanel(&guiState, &flockState);
-        if (parametersPanelResult.resetBoids) {
+        const struct GuiResult guiResult = DrawGui(&guiState, &flockState);
+        if (guiResult.parametersPanelResult.resetBoids) {
             DestroyFlock(&flockState);
-            if (!InitializeFlock(&flockState, parametersPanelResult.newFlockConfig)) {
+            if (!InitializeFlock(&flockState, guiResult.parametersPanelResult.newFlockConfig)) {
                 TraceLog(LOG_FATAL, "Failed to reinitialise flock. Exiting.");
             }
         } else {
-            ModifyFlockConfig(&flockState, parametersPanelResult.newFlockConfig);
+            ModifyFlockConfig(&flockState, guiResult.parametersPanelResult.newFlockConfig);
         }
 
         EndDrawing();

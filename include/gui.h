@@ -3,7 +3,6 @@
 
 #include <stdbool.h>
 
-#include "boid.h"
 #include "flock.h"
 
 // Used to keep a consistent style for the whole GUI
@@ -18,26 +17,26 @@ struct GuiConfig {
     float buttonHeight;
 };
 
-// TODO: Move definition to c file and only forward declare here
 struct PanelState {
+    struct GuiConfig *config;
+
     int currentId;
     int activeId;
 
     float heightOffset;
-
-    struct GuiConfig *config;
 };
 
 struct GuiState {
-    // GUI element toggles
-    bool showRanges;
-    bool showFPS;
-    int inspectedBoidIndex;
-
     struct PanelState parametersPanelState;
-
     // Current config for GUI
     struct GuiConfig config;
+
+    // GUI element toggles
+    bool showFPS;
+#ifdef DEBUG
+    bool showRanges;
+    int inspectedBoidIndex;
+#endif /* ifdef DEBUG */
 };
 
 struct GuiConfig CreateDefaultGuiConfig(float screenHeight);
@@ -48,9 +47,15 @@ struct ParametersPanelResult {
     bool resetBoids;
     struct FlockConfig newFlockConfig;
 };
-
-void DrawBoidRanges(const struct GuiState *guiState, const struct FlockState *flockState, const Boid *boid);
-
 struct ParametersPanelResult DrawParametersPanel(struct GuiState *guiState, const struct FlockState *flockState);
+
+#ifdef DEBUG
+void DrawGuiBoidOverlay(const struct GuiState *guiState, const struct FlockState *flockState, int boidIndex);
+#endif /* ifdef DEBUG */
+
+struct GuiResult {
+    struct ParametersPanelResult parametersPanelResult;
+};
+struct GuiResult DrawGui(struct GuiState *state, const struct FlockState *flockState);
 
 #endif // !GUI_H
