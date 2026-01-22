@@ -255,9 +255,9 @@ static Vector2 CalculateSteeringVector(int boidIndex, const struct FlockState *f
 
 #ifdef DEBUG
     // Set debug values
-    flockState->boids->separationVector = separationVector;
-    flockState->boids->alignmentVector = alignmentVector;
-    flockState->boids->cohesionVector = cohesionVector;
+    // flockState->boids[boidIndex]->separationVector = separationVector;
+    // flockState->boids[boidIndex]->alignmentVector = alignmentVector;
+    // flockState->boids[boidIndex]->cohesionVector = cohesionVector;
 #endif /* ifdef DEBUG */
 
     *outCollisionTime = collisionTime;
@@ -300,6 +300,16 @@ void UpdateFlock(struct FlockState *flockState) {
         TraceLog(LOG_ERROR, "UpdateFlock: Recieved NULL pointer to flockState.");
         return;
     }
+
+    #ifdef DEBUG
+    if (flockState->isPaused) {
+        if (flockState->doStep){
+            flockState->doStep = false;
+        } else {
+            return;
+        }
+    }
+    #endif /* ifdef DEBUG */
 
     float totalCollisionTime = 0.F;
 

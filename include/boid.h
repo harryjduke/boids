@@ -18,6 +18,6 @@ typedef struct {
 #define BOID_LENGTH 10.f
 #define BOID_WIDTH 7.5f
 
-void DrawBoid(Boid boid);
+void DrawBoid(const Boid *boid);
 
 #endif /* ifdef BOID_H */

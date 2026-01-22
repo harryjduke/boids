@@ -41,9 +41,13 @@ struct FlockState {
 
     struct FlockConfig config;
 
-    // Debug values
+#ifdef DEBUG
+    bool isPaused;
+    bool doStep;
+
     float collisionTime;
     float collisionTimeStart;
+#endif /* ifdef DEBUG */
 };
 
 struct FlockConfig CreateDefaultFlockConfig(Rectangle flockBounds);
