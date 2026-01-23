@@ -13,8 +13,8 @@ struct FlockConfig CreateDefaultFlockConfig(const Rectangle flockBounds) {
         .numberOfBoids = 100,
 
         .separationFactor = 1.F,
-        .alignmentFactor = 0.01F,
-        .cohesionFactor = 0.005F,
+        .alignmentFactor = 1.F,
+        .cohesionFactor = 1.F,
 
         .separationRange = 50.F,
         .alignmentRange = 100.F,
@@ -134,7 +134,7 @@ bool InitializeFlock(struct FlockState *flockState, const struct FlockConfig con
     *flockState = (struct FlockState){
         .boids = boids,
         .boidsCount = config.numberOfBoids,
-        .steeringVectors = steeringVectors,
+        .steeringForces = steeringVectors,
         .config = config,
         .collisionTime = 0.F,
         .collisionTimeStart = (float)GetTime(),
@@ -164,21 +164,20 @@ void ModifyFlockConfig(struct FlockState *flockState, struct FlockConfig newConf
 
 // Internal function that calculates the steering vector (total separation, alignment and cohesion) for the given boid.
 // NOTE: This function also has an out parameter that will be set to the collision time for the given boid.
-struct SteeringVectors {
-    Vector2 separationVector;
-    Vector2 alignmentVector;
-    Vector2 cohesionVector;
-} CalculateSteeringVector(int boidIndex, const struct FlockState *flockState, float *outCollisionTime) {
+static struct TargetVelocities {
+    Vector2 separation;
+    Vector2 alignment;
+    Vector2 cohesion;
+#ifdef DEBUG
+    float collisionTime;
+#endif /* ifdef DEBUG */
+} CalculateTargetVelocities(int boidIndex, const struct FlockState *flockState) {
     const Boid *boid = &flockState->boids[boidIndex];
 
-    Vector2 separationVector = Vector2Zero();
+    struct TargetVelocities targetVelocities = {0};
     int boidsInSeparationRange = 0;
-    Vector2 alignmentVector = Vector2Zero();
     int boidsInAlignmentRange = 0;
-    Vector2 cohesionVector = Vector2Zero();
     int boidsInCohesionRange = 0;
-
-    float collisionTime = 0.F;
 
     for (int i = 0; i < flockState->boidsCount; i++) {
         if (boidIndex == i) {
@@ -186,7 +185,6 @@ struct SteeringVectors {
         }
 
         const Boid *otherBoid = &flockState->boids[i];
-
         const float distanceToOtherBoid = Vector2Distance(boid->position, otherBoid->position);
 
         // Separation
@@ -198,65 +196,56 @@ struct SteeringVectors {
             float magnitude = (flockState->config.separationRange / distanceToOtherBoid) - 1;
             // Magnitude gets exponentially higher as the distance closes
             // magnitude *= magnitude;
-            separationVector =
-                Vector2Add(separationVector, Vector2Scale(Vector2Normalize(separationOffset), magnitude));
+            targetVelocities.separation =
+                Vector2Add(targetVelocities.separation, Vector2Scale(Vector2Normalize(separationOffset), magnitude));
             boidsInSeparationRange++;
         }
 
         // Alignment
         // Adjusts the velocity towards the average velocity of the boids within range.
         if (distanceToOtherBoid < flockState->config.alignmentRange) {
-            alignmentVector = Vector2Add(alignmentVector, otherBoid->velocity);
+            targetVelocities.alignment = Vector2Add(targetVelocities.alignment, otherBoid->velocity);
             boidsInAlignmentRange++;
         }
 
         // Cohesion
         // A force towards the centre of the boids within range.
         if (distanceToOtherBoid < flockState->config.cohesionRange) {
-            cohesionVector = Vector2Add(cohesionVector, otherBoid->position);
+            targetVelocities.cohesion = Vector2Add(targetVelocities.cohesion, otherBoid->position);
             boidsInCohesionRange++;
         }
 
-        // Debug values
+#ifdef DEBUG
         if (distanceToOtherBoid < 5.F) {
-            collisionTime += GetFrameTime();
+            targetVelocities.collisionTime += GetFrameTime();
         }
-    }
-
-    if (boidsInSeparationRange > 0) {
-        // Convert to steering vector
-        separationVector = Vector2Subtract(separationVector, boid->velocity);
+#endif /* ifdef DEBUG */
     }
 
     if (boidsInAlignmentRange > 0) {
-        // Calculate average alignment
-        alignmentVector = Vector2Scale(alignmentVector, 1.F / (float)boidsInAlignmentRange);
-        // Convert to steering vector
-        alignmentVector = Vector2Subtract(alignmentVector, boid->velocity);
+        targetVelocities.alignment = Vector2Scale(targetVelocities.alignment, 1.F / (float)boidsInAlignmentRange);
     }
 
     if (boidsInCohesionRange > 0) {
-        // Calculate average cohesion relative to position
-        cohesionVector = Vector2Scale(cohesionVector, 1.F / (float)boidsInCohesionRange);
-        // Convert to steering vector
-        cohesionVector = Vector2Subtract(cohesionVector, boid->position);
+        targetVelocities.cohesion = Vector2Scale(targetVelocities.cohesion, 1.F / (float)boidsInCohesionRange);
+        targetVelocities.cohesion = Vector2Subtract(targetVelocities.cohesion, boid->position);
     }
 
     if (flockState->config.normalizeForces) {
-        separationVector = Vector2Normalize(separationVector);
-        alignmentVector = Vector2Normalize(alignmentVector);
-        cohesionVector = Vector2Normalize(cohesionVector);
+        targetVelocities.separation = Vector2Normalize(targetVelocities.separation);
+        targetVelocities.alignment = Vector2Normalize(targetVelocities.alignment);
+        targetVelocities.cohesion = Vector2Normalize(targetVelocities.cohesion);
         // separationVector = Vector2ClampValue(separationVector, 0.F, 1.F);
         // alignmentVector = Vector2ClampValue(alignmentVector, 0.F, 1.F);
         // cohesionVector = Vector2ClampValue(cohesionVector, 0.F, 1.F);
     }
 
-    *outCollisionTime = collisionTime;
-    return (struct SteeringVectors){
-        .separationVector = Vector2Scale(separationVector, flockState->config.separationFactor),
-        .alignmentVector = Vector2Scale(alignmentVector, flockState->config.alignmentFactor),
-        .cohesionVector = Vector2Scale(cohesionVector, flockState->config.cohesionFactor),
-    };
+    // Scale each velocity by its weight
+    targetVelocities.separation = Vector2Scale(targetVelocities.separation, flockState->config.separationFactor);
+    targetVelocities.alignment = Vector2Scale(targetVelocities.alignment, flockState->config.alignmentFactor);
+    targetVelocities.cohesion = Vector2Scale(targetVelocities.cohesion, flockState->config.cohesionFactor);
+
+    return targetVelocities;
 }
 
 // Internal function that updates the given boid's position by applying its velocity (clamped by min/max speed).
@@ -264,6 +253,7 @@ static void UpdateBoidPosition(Boid *boid, const struct FlockState *flockState) 
     // Clamp boid speed
     if (flockState->config.clampSpeed) {
         float speed = Vector2Length(boid->velocity);
+        // TODO: Handle speed = 0 to avoid division by 0
         if (speed > flockState->config.maximumSpeed) {
             boid->velocity = Vector2Scale(boid->velocity, (1.F / speed) * flockState->config.maximumSpeed);
         } else if (speed < flockState->config.minimumSpeed) {
@@ -304,30 +294,35 @@ void UpdateFlock(struct FlockState *flockState) {
             return;
         }
     }
-#endif /* ifdef DEBUG */
 
     float totalCollisionTime = 0.F;
+#endif /* ifdef DEBUG */
 
     for (int i = 0; i < flockState->boidsCount; i++) {
-        float boidCollisionTime = 0.F;
-        struct SteeringVectors steeringVectors = CalculateSteeringVector(i, flockState, &boidCollisionTime);
-        Vector2 steeringVector = Vector2Zero();
-        steeringVector = Vector2Add(steeringVector, steeringVectors.separationVector);
-        steeringVector = Vector2Add(steeringVector, steeringVectors.alignmentVector);
-        steeringVector = Vector2Add(steeringVector, steeringVectors.cohesionVector);
-        flockState->steeringVectors[i] = steeringVector;
+        struct TargetVelocities targetVelocities = CalculateTargetVelocities(i, flockState);
+
+        Vector2 totalTargetVelocity = Vector2Add(targetVelocities.separation, targetVelocities.alignment);
+        totalTargetVelocity = Vector2Add(totalTargetVelocity, targetVelocities.cohesion);
+
+        totalTargetVelocity = Vector2ClampValue(totalTargetVelocity, 0.F, flockState->config.maximumSpeed);
+
+        Vector2 steeringForce = Vector2Subtract(totalTargetVelocity, flockState->boids[i].velocity);
+
+        flockState->steeringForces[i] = steeringForce;
 #ifdef DEBUG
-        flockState->boids[i].separationVector = steeringVectors.separationVector;
-        flockState->boids[i].alignmentVector = steeringVectors.alignmentVector;
-        flockState->boids[i].cohesionVector = steeringVectors.cohesionVector;
-#endif /* ifdef MACRO */
-        totalCollisionTime += boidCollisionTime;
+        flockState->boids[i].separationVector = targetVelocities.separation;
+        flockState->boids[i].alignmentVector = targetVelocities.alignment;
+        flockState->boids[i].cohesionVector = targetVelocities.cohesion;
+        totalCollisionTime += targetVelocities.collisionTime;
+#endif /* ifdef DEBUG */
     }
 
+#ifdef DEBUG
     flockState->collisionTime += totalCollisionTime;
+#endif /* ifdef DEBUG */
 
     for (int i = 0; i < flockState->boidsCount; i++) {
-        flockState->boids[i].velocity = Vector2Add(flockState->boids[i].velocity, flockState->steeringVectors[i]);
+        flockState->boids[i].velocity = Vector2Add(flockState->boids[i].velocity, flockState->steeringForces[i]);
         UpdateBoidPosition(&flockState->boids[i], flockState);
     }
 }
@@ -345,8 +340,8 @@ void DestroyFlock(struct FlockState *flockState) {
 
     flockState->boidsCount = 0;
 
-    if (flockState->steeringVectors != NULL) {
-        free(flockState->steeringVectors);
-        flockState->steeringVectors = NULL;
+    if (flockState->steeringForces != NULL) {
+        free(flockState->steeringForces);
+        flockState->steeringForces = NULL;
     }
 }

@@ -422,6 +422,7 @@ static void Debug_DrawBoidRanges(const struct FlockState *flockState, const int 
 static void Debug_DrawVector2(Vector2 origin, Vector2 displacement, Color color) {
     const float headLength = 5.F;
     const float headHalfWidth = 2.5F;
+
     Vector2 tipPosition = Vector2Add(origin, displacement);
     Vector2 direction = Vector2Normalize(displacement);
     Vector2 perpenicular = {.x = -direction.y, .y = direction.x};
@@ -444,13 +445,13 @@ static void Debug_DrawGuiBoidOverlay(const struct GuiState *guiState, const stru
         Debug_DrawVector2(flockState->boids[boidIndex].position, flockState->boids[boidIndex].velocity, RED);
     }
     if (guiState->debug_showSeparation) {
-        Debug_DrawVector2(flockState->boids[boidIndex].position, flockState->boids[boidIndex].separationVector, RED);
+        Debug_DrawVector2(flockState->boids[boidIndex].position, Vector2Scale(flockState->boids[boidIndex].separationVector, 1/flockState->config.separationFactor), RED);
     }
     if (guiState->debug_showAlignment) {
-        Debug_DrawVector2(flockState->boids[boidIndex].position, flockState->boids[boidIndex].alignmentVector, RED);
+        Debug_DrawVector2(flockState->boids[boidIndex].position, Vector2Scale(flockState->boids[boidIndex].alignmentVector, 1/flockState->config.alignmentFactor), RED);
     }
     if (guiState->debug_showCohesion) {
-        Debug_DrawVector2(flockState->boids[boidIndex].position, flockState->boids[boidIndex].cohesionVector, RED);
+        Debug_DrawVector2(flockState->boids[boidIndex].position, Vector2Scale(flockState->boids[boidIndex].cohesionVector, 1/flockState->config.cohesionFactor), RED);
     }
 }
 #endif /* ifdef DEBUG */

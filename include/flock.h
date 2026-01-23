@@ -37,7 +37,7 @@ struct FlockState {
     Boid *boids;
     int boidsCount;
 
-    Vector2 *steeringVectors;
+    Vector2 *steeringForces;
 
     struct FlockConfig config;
 
