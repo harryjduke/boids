@@ -48,6 +48,9 @@ struct GuiState {
     int debug_inspectedBoidIndex;
     bool debug_showRanges;
     bool debug_showVelocity;
+    bool debug_showSeparation;
+    bool debug_showAlignment;
+    bool debug_showCohesion;
 #endif /* ifdef DEBUG */
 };
 

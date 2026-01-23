@@ -374,8 +374,11 @@ struct Debug_InspectionPanelResult Debug_DrawInspectionPanel(struct GuiState *gu
     PanelValueVector2("Velocity", &boid->velocity, true, panelState);
     PanelParameterBool("Draw Velocity", &guiState->debug_showVelocity, panelState);
     PanelValueVector2("Separation Vector", &boid->separationVector, true, panelState);
+    PanelParameterBool("Draw Separation", &guiState->debug_showSeparation, panelState);
     PanelValueVector2("Alignment Vector", &boid->alignmentVector, true, panelState);
+    PanelParameterBool("Draw Alignment", &guiState->debug_showAlignment, panelState);
     PanelValueVector2("Cohesion Vector", &boid->cohesionVector, true, panelState);
+    PanelParameterBool("Draw Cohesion", &guiState->debug_showCohesion, panelState);
 
     PanelParameterBool("Show Ranges", &guiState->debug_showRanges, panelState);
 
@@ -439,6 +442,15 @@ static void Debug_DrawGuiBoidOverlay(const struct GuiState *guiState, const stru
     }
     if (guiState->debug_showVelocity) {
         Debug_DrawVector2(flockState->boids[boidIndex].position, flockState->boids[boidIndex].velocity, RED);
+    }
+    if (guiState->debug_showSeparation) {
+        Debug_DrawVector2(flockState->boids[boidIndex].position, flockState->boids[boidIndex].separationVector, RED);
+    }
+    if (guiState->debug_showAlignment) {
+        Debug_DrawVector2(flockState->boids[boidIndex].position, flockState->boids[boidIndex].alignmentVector, RED);
+    }
+    if (guiState->debug_showCohesion) {
+        Debug_DrawVector2(flockState->boids[boidIndex].position, flockState->boids[boidIndex].cohesionVector, RED);
     }
 }
 #endif /* ifdef DEBUG */

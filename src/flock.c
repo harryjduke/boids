@@ -164,7 +164,11 @@ void ModifyFlockConfig(struct FlockState *flockState, struct FlockConfig newConf
 
 // Internal function that calculates the steering vector (total separation, alignment and cohesion) for the given boid.
 // NOTE: This function also has an out parameter that will be set to the collision time for the given boid.
-static Vector2 CalculateSteeringVector(int boidIndex, const struct FlockState *flockState, float *outCollisionTime) {
+struct SteeringVectors {
+    Vector2 separationVector;
+    Vector2 alignmentVector;
+    Vector2 cohesionVector;
+} CalculateSteeringVector(int boidIndex, const struct FlockState *flockState, float *outCollisionTime) {
     const Boid *boid = &flockState->boids[boidIndex];
 
     Vector2 separationVector = Vector2Zero();
@@ -247,21 +251,12 @@ static Vector2 CalculateSteeringVector(int boidIndex, const struct FlockState *f
         // cohesionVector = Vector2ClampValue(cohesionVector, 0.F, 1.F);
     }
 
-    Vector2 steeringVector = Vector2Zero();
-    // Combine vectors
-    steeringVector = Vector2Add(steeringVector, Vector2Scale(separationVector, flockState->config.separationFactor));
-    steeringVector = Vector2Add(steeringVector, Vector2Scale(alignmentVector, flockState->config.alignmentFactor));
-    steeringVector = Vector2Add(steeringVector, Vector2Scale(cohesionVector, flockState->config.cohesionFactor));
-
-#ifdef DEBUG
-    // Set debug values
-    // flockState->boids[boidIndex]->separationVector = separationVector;
-    // flockState->boids[boidIndex]->alignmentVector = alignmentVector;
-    // flockState->boids[boidIndex]->cohesionVector = cohesionVector;
-#endif /* ifdef DEBUG */
-
     *outCollisionTime = collisionTime;
-    return steeringVector;
+    return (struct SteeringVectors){
+        .separationVector = Vector2Scale(separationVector, flockState->config.separationFactor),
+        .alignmentVector = Vector2Scale(alignmentVector, flockState->config.alignmentFactor),
+        .cohesionVector = Vector2Scale(cohesionVector, flockState->config.cohesionFactor),
+    };
 }
 
 // Internal function that updates the given boid's position by applying its velocity (clamped by min/max speed).
@@ -301,21 +296,31 @@ void UpdateFlock(struct FlockState *flockState) {
         return;
     }
 
-    #ifdef DEBUG
+#ifdef DEBUG
     if (flockState->isPaused) {
-        if (flockState->doStep){
+        if (flockState->doStep) {
             flockState->doStep = false;
         } else {
             return;
         }
     }
-    #endif /* ifdef DEBUG */
+#endif /* ifdef DEBUG */
 
     float totalCollisionTime = 0.F;
 
     for (int i = 0; i < flockState->boidsCount; i++) {
         float boidCollisionTime = 0.F;
-        flockState->steeringVectors[i] = CalculateSteeringVector(i, flockState, &boidCollisionTime);
+        struct SteeringVectors steeringVectors = CalculateSteeringVector(i, flockState, &boidCollisionTime);
+        Vector2 steeringVector = Vector2Zero();
+        steeringVector = Vector2Add(steeringVector, steeringVectors.separationVector);
+        steeringVector = Vector2Add(steeringVector, steeringVectors.alignmentVector);
+        steeringVector = Vector2Add(steeringVector, steeringVectors.cohesionVector);
+        flockState->steeringVectors[i] = steeringVector;
+#ifdef DEBUG
+        flockState->boids[i].separationVector = steeringVectors.separationVector;
+        flockState->boids[i].alignmentVector = steeringVectors.alignmentVector;
+        flockState->boids[i].cohesionVector = steeringVectors.cohesionVector;
+#endif /* ifdef MACRO */
         totalCollisionTime += boidCollisionTime;
     }
 

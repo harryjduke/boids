@@ -39,19 +39,25 @@ int main(int argc, char *argv[]) {
 
         // Draw boids
         for (int i = 0; i < flockState.boidsCount; i++) {
-            DrawBoid(flockState.boids[i]);
+            DrawBoid(&flockState.boids[i]);
         }
 
         // Draw GUI
         const struct GuiResult guiResult = DrawGui(&guiState, &flockState);
-        if (guiResult.parametersPanelResult.resetBoids) {
-            DestroyFlock(&flockState);
-            if (!InitializeFlock(&flockState, guiResult.parametersPanelResult.newFlockConfig)) {
-                TraceLog(LOG_FATAL, "Failed to reinitialise flock. Exiting.");
+        if (guiResult.parametersPanelResult.hasFlockConfigChanged) {
+            if (guiResult.parametersPanelResult.resetBoids) {
+                DestroyFlock(&flockState);
+                if (!InitializeFlock(&flockState, guiResult.parametersPanelResult.newFlockConfig)) {
+                    TraceLog(LOG_FATAL, "Failed to reinitialise flock. Exiting.");
+                }
+            } else {
+                ModifyFlockConfig(&flockState, guiResult.parametersPanelResult.newFlockConfig);
             }
-        } else {
-            ModifyFlockConfig(&flockState, guiResult.parametersPanelResult.newFlockConfig);
         }
+#ifdef DEBUG
+        flockState.isPaused = guiResult.debug_inspectionPanelResult.isFlockPaused;
+        flockState.doStep = guiResult.debug_inspectionPanelResult.doStepFlock;
+#endif /* ifdef DEBUG */
 
         EndDrawing();
     }
