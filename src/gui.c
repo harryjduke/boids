@@ -351,6 +351,11 @@ struct Debug_InspectionPanelResult Debug_DrawInspectionPanel(struct GuiState *gu
         TraceLog(LOG_ERROR, "Debug_DrawInspectionPanel: Recieved index of invalid boid.");
         return result;
     }
+    struct Debug_BoidData *boidData = &flockState->debug_boidData[guiState->debug_inspectedBoidIndex];
+    if (boidData == NULL) {
+        TraceLog(LOG_ERROR, "Debug_DrawInspectionPanel: Boid does not have valid debug data.");
+        return result;
+    }
 
     GuiSetStyle(SPINNER, TEXT_ALIGNMENT, TEXT_ALIGN_RIGHT);
     GuiSetStyle(SPINNER, TEXT_PADDING, (int)guiState->config.padding);
@@ -373,11 +378,11 @@ struct Debug_InspectionPanelResult Debug_DrawInspectionPanel(struct GuiState *gu
     PanelValueVector2("Position", &boid->position, false, panelState);
     PanelValueVector2("Velocity", &boid->velocity, true, panelState);
     PanelParameterBool("Draw Velocity", &guiState->debug_showVelocity, panelState);
-    PanelValueVector2("Separation Vector", &boid->separationVector, true, panelState);
+    PanelValueVector2("Separation Vector", &boidData->separationVector, true, panelState);
     PanelParameterBool("Draw Separation", &guiState->debug_showSeparation, panelState);
-    PanelValueVector2("Alignment Vector", &boid->alignmentVector, true, panelState);
+    PanelValueVector2("Alignment Vector", &boidData->alignmentVector, true, panelState);
     PanelParameterBool("Draw Alignment", &guiState->debug_showAlignment, panelState);
-    PanelValueVector2("Cohesion Vector", &boid->cohesionVector, true, panelState);
+    PanelValueVector2("Cohesion Vector", &boidData->cohesionVector, true, panelState);
     PanelParameterBool("Draw Cohesion", &guiState->debug_showCohesion, panelState);
 
     PanelParameterBool("Show Ranges", &guiState->debug_showRanges, panelState);
@@ -445,13 +450,16 @@ static void Debug_DrawGuiBoidOverlay(const struct GuiState *guiState, const stru
         Debug_DrawVector2(flockState->boids[boidIndex].position, flockState->boids[boidIndex].velocity, RED);
     }
     if (guiState->debug_showSeparation) {
-        Debug_DrawVector2(flockState->boids[boidIndex].position, Vector2Scale(flockState->boids[boidIndex].separationVector, 1/flockState->config.separationFactor), RED);
+        Debug_DrawVector2(flockState->boids[boidIndex].position, flockState->debug_boidData[boidIndex].separationVector,
+                          RED);
     }
     if (guiState->debug_showAlignment) {
-        Debug_DrawVector2(flockState->boids[boidIndex].position, Vector2Scale(flockState->boids[boidIndex].alignmentVector, 1/flockState->config.alignmentFactor), RED);
+        Debug_DrawVector2(flockState->boids[boidIndex].position, flockState->debug_boidData[boidIndex].alignmentVector,
+                          RED);
     }
     if (guiState->debug_showCohesion) {
-        Debug_DrawVector2(flockState->boids[boidIndex].position, Vector2Scale(flockState->boids[boidIndex].cohesionVector, 1/flockState->config.cohesionFactor), RED);
+        Debug_DrawVector2(flockState->boids[boidIndex].position, flockState->debug_boidData[boidIndex].cohesionVector,
+                          RED);
     }
 }
 #endif /* ifdef DEBUG */

@@ -42,6 +42,7 @@ struct FlockState {
     struct FlockConfig config;
 
 #ifdef DEBUG
+    struct Debug_BoidData *debug_boidData;
     bool isPaused;
     bool doStep;
 

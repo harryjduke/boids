@@ -6,14 +6,17 @@
 typedef struct {
     Vector2 position;
     Vector2 velocity;
+} Boid;
 
 #ifdef DEBUG
-    // Debug values
+struct Debug_BoidData {
     Vector2 separationVector;
     Vector2 alignmentVector;
     Vector2 cohesionVector;
+
+    float collisionTime;
+};
 #endif /* ifdef DEBUG */
-} Boid;
 
 #define BOID_LENGTH 10.f
 #define BOID_WIDTH 7.5f
