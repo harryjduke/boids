@@ -303,9 +303,6 @@ struct ParametersPanelResult DrawParametersPanel(struct GuiState *guiState, cons
 
     PanelParameterBool("Show FPS", &guiState->showFPS, panelState);
 
-    float collisionRate = (float)(flockState->collisionTime / (GetTime() - flockState->collisionTimeStart));
-    PanelValueFloat("Collision Rate", &collisionRate, panelState);
-
     return result;
 }
 
@@ -386,6 +383,10 @@ struct Debug_InspectionPanelResult Debug_DrawInspectionPanel(struct GuiState *gu
     PanelParameterBool("Draw Cohesion", &guiState->debug_showCohesion, panelState);
 
     PanelParameterBool("Show Ranges", &guiState->debug_showRanges, panelState);
+
+    PanelHeader("Flock Stats", panelState);
+    float collisionRate = (float)(flockState->collisionTime / (GetTime() - flockState->collisionTimeStart));
+    PanelValueFloat("Collision Rate", &collisionRate, panelState);
 
     return result;
 }

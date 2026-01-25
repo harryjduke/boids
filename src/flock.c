@@ -155,10 +155,14 @@ bool InitializeFlock(struct FlockState *flockState, const struct FlockConfig con
         .boidsCount = config.numberOfBoids,
         .steeringForces = steeringVectors,
         .config = config,
-        .collisionTime = 0.F,
-        .collisionTimeStart = (float)GetTime(),
 #ifdef DEBUG
         .debug_boidData = debug_boidData,
+
+        .isPaused = false,
+        .doStep = false,
+
+        .collisionTime = 0.F,
+        .collisionTimeStart = (float)GetTime(),
 #endif /* ifdef DEBUG */
     };
 
